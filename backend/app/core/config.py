@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     chunk_size: int = Field(default=1000, ge=100, le=4000)
     chunk_overlap: int = Field(default=200, ge=0, le=1000)
     ingestion_batch_size: int = Field(default=50, ge=1, le=500)
+    # Texts per parallel embedding API call (HuggingFace batch limit)
+    embedding_batch_size: int = Field(default=32, ge=1, le=512)
 
     # Pipeline settings
     retrieval_k: int = Field(default=10, ge=1, le=50)

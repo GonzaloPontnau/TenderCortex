@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 from functools import lru_cache, wraps
 from pathlib import Path
 from typing import Callable, TypeVar
@@ -7,7 +8,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams
+from qdrant_client.models import Distance, PointStruct, VectorParams
 from langchain_qdrant import QdrantVectorStore
 
 from app.core.config import settings
@@ -32,7 +33,7 @@ def _ensure_initialized(method: Callable[..., T]) -> Callable[..., T]:
 
 class RAGService:
     """Servicio de RAG con Qdrant in-memory como vector store.
-    
+
     Zero-maintenance solution for ephemeral containers.
     Data is stored entirely in RAM and will be wiped on restart.
     """
@@ -49,13 +50,11 @@ class RAGService:
     async def _initialize(self) -> None:
         """Inicializa el cliente Qdrant in-memory y el vector store."""
         try:
-            # Create in-memory Qdrant client (no API keys, no persistence)
             self._client = QdrantClient(location=":memory:")
-            
-            # Create collection if it doesn't exist
+
             collections = await asyncio.to_thread(self._client.get_collections)
             collection_names = [c.name for c in collections.collections]
-            
+
             if COLLECTION_NAME not in collection_names:
                 logger.info(f"Creando colección '{COLLECTION_NAME}' en Qdrant in-memory")
                 await asyncio.to_thread(
@@ -66,18 +65,36 @@ class RAGService:
                         distance=Distance.COSINE,
                     ),
                 )
-            
-            # Create LangChain vector store wrapper
+
             self._vector_store = QdrantVectorStore(
                 client=self._client,
                 collection_name=COLLECTION_NAME,
                 embedding=self._embeddings,
             )
-            
+
             logger.info("Qdrant in-memory inicializado correctamente")
         except Exception as e:
             logger.error(f"Error inicializando Qdrant in-memory: {e}")
             raise
+
+    async def _embed_texts(self, texts: list[str]) -> list[list[float]]:
+        """Embeds all texts using parallel API calls batched by embedding_batch_size."""
+        batch_size = settings.embedding_batch_size
+        batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
+        # Fire all embedding API requests concurrently
+        results = await asyncio.gather(
+            *[asyncio.to_thread(self._embeddings.embed_documents, batch) for batch in batches]
+        )
+        # Flatten list-of-lists
+        return [vector for batch_vectors in results for vector in batch_vectors]
+
+    async def warmup(self) -> None:
+        """Pre-calienta la API de embeddings y el vector store para la primera solicitud."""
+        if self._vector_store is None:
+            await self._initialize()
+        # Single dummy call to load the remote model into memory
+        await asyncio.to_thread(self._embeddings.embed_query, "warmup")
+        logger.info("Embeddings pre-calentados correctamente")
 
     @_ensure_initialized
     async def ingest_document(self, file_path: Path, original_filename: str | None = None) -> int:
@@ -85,7 +102,8 @@ class RAGService:
 
         Optimizations:
         - PDF loading and splitting run in a thread pool to not block the event loop
-        - Chunks are batched for embedding to maximize HuggingFace API throughput
+        - All chunks are embedded in parallel batches via concurrent API calls
+        - All vectors are inserted in a single Qdrant upsert call
         """
         source_name = original_filename or file_path.name
 
@@ -94,16 +112,34 @@ class RAGService:
             pages = await asyncio.to_thread(loader.load)
             chunks = await asyncio.to_thread(self._splitter.split_documents, pages)
 
-            # Add source metadata to each chunk
+            if not chunks:
+                logger.warning(f"No se generaron chunks de '{source_name}'")
+                return 0
+
             for chunk in chunks:
                 chunk.metadata["source"] = source_name
 
-            # Batch add documents (embeddings are computed in batches internally)
-            # For large documents, split into batches to avoid API timeouts
-            batch_size = settings.ingestion_batch_size
-            for i in range(0, len(chunks), batch_size):
-                batch = chunks[i:i + batch_size]
-                await asyncio.to_thread(self._vector_store.add_documents, batch)
+            # Embed all chunks — parallel batches saturate the API concurrently
+            texts = [chunk.page_content for chunk in chunks]
+            vectors = await self._embed_texts(texts)
+
+            # Single upsert for all points (one round-trip to Qdrant)
+            points = [
+                PointStruct(
+                    id=str(uuid.uuid4()),
+                    vector=vector,
+                    payload={
+                        "page_content": chunk.page_content,
+                        "metadata": chunk.metadata,
+                    },
+                )
+                for chunk, vector in zip(chunks, vectors)
+            ]
+            await asyncio.to_thread(
+                self._client.upsert,
+                collection_name=COLLECTION_NAME,
+                points=points,
+            )
 
             logger.info(f"Ingestados {len(chunks)} chunks de '{source_name}'")
             return len(chunks)
@@ -140,7 +176,6 @@ class RAGService:
         try:
             if self._client is None:
                 await self._initialize()
-            # Simple check: get collections list
             await asyncio.to_thread(self._client.get_collections)
             return True
         except Exception:
@@ -150,7 +185,6 @@ class RAGService:
     async def clear_index(self) -> bool:
         """Elimina todos los vectores recreando la colección."""
         try:
-            # Recreate collection to wipe all data instantly
             await asyncio.to_thread(
                 self._client.recreate_collection,
                 collection_name=COLLECTION_NAME,
@@ -159,14 +193,13 @@ class RAGService:
                     distance=Distance.COSINE,
                 ),
             )
-            
-            # Recreate vector store wrapper
+
             self._vector_store = QdrantVectorStore(
                 client=self._client,
                 collection_name=COLLECTION_NAME,
                 embedding=self._embeddings,
             )
-            
+
             logger.info("Colección recreada exitosamente (datos limpiados)")
             return True
         except Exception as e:
@@ -192,33 +225,29 @@ class RAGService:
     @_ensure_initialized
     async def get_indexed_documents(self) -> list[dict]:
         """Obtiene lista de documentos indexados con metadata básica.
-        
+
         Returns:
             Lista de dicts con 'name' (source) y 'chunks' (count estimado).
         """
         try:
-            # Scroll through all points to extract unique sources
-            # Using scroll instead of query for better coverage
             records, _ = await asyncio.to_thread(
                 self._client.scroll,
                 collection_name=COLLECTION_NAME,
                 limit=1000,
                 with_payload=True,
             )
-            
-            # Aggregate by source
+
             source_counts: dict[str, int] = {}
             for record in records:
                 if record.payload:
                     source = record.payload.get("metadata", {}).get("source", "unknown")
                     source_counts[source] = source_counts.get(source, 0) + 1
-            
-            # Convert to list format expected by frontend
+
             documents = [
                 {"name": source, "chunks": count}
                 for source, count in source_counts.items()
             ]
-            
+
             logger.debug(f"Found {len(documents)} indexed documents")
             return documents
         except Exception as e:

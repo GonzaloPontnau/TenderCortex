@@ -1,3 +1,4 @@
+import asyncio
 import os
 from contextlib import asynccontextmanager
 
@@ -19,9 +20,21 @@ def get_allowed_origins() -> list[str]:
     return [origin.strip() for origin in origins_str.split(",") if origin.strip()]
 
 
+async def _warmup_services() -> None:
+    """Pre-calienta embeddings y Qdrant en background para que la primera carga sea rápida."""
+    try:
+        rag = get_rag_service()
+        await rag.warmup()
+        logger.info("Servicios pre-calentados correctamente")
+    except Exception as e:
+        logger.warning(f"Pre-calentamiento fallido (no crítico): {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info(f"Iniciando TenderCortex [{settings.app_env}]")
+    # Fire warmup in background so app becomes ready immediately
+    asyncio.create_task(_warmup_services())
     yield
     logger.info("Cerrando TenderCortex")
 
