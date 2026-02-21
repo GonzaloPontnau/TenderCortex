@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.core.logging import AgentLogger
 from app.services import get_llm
 from app.agents.utils import parse_json_response as _parse_json_response
+from app.agents.prompts import UNIFIED_RISK_PROMPT_ENHANCED
 
 logger = AgentLogger("risk_sentinel")
 
@@ -29,44 +30,6 @@ try:
     RISK_CALCULATOR_AVAILABLE = True
 except ImportError:
     RISK_CALCULATOR_AVAILABLE = False
-
-
-UNIFIED_RISK_PROMPT_ENHANCED = """Eres un auditor de compliance y riesgos para licitaciones. Analiza la respuesta generada contra el contexto del documento.
-
-RESPUESTA A AUDITAR:
-{answer}
-
-CONTEXTO DEL DOCUMENTO:
-{context}
-
-PREGUNTA ORIGINAL:
-{question}
-
-TAREA:
-1. Verifica si las afirmaciones de la respuesta están respaldadas por el contexto.
-2. Identifica riesgos específicos (factores de riesgo) para la viabilidad de la oferta.
-3. Evalúa la severidad y probabilidad de cada riesgo.
-
-CRITERIOS DE RIESGO:
-- low: Riesgo menor, gestionable.
-- medium: Riesgo moderado, requiere mitigación.
-- high: Riesgo alto, puede comprometer la oferta.
-- critical: Riesgo crítico, "Showstopper" (ej: inhabilitación, incumplimiento legal grave).
-
-RESPONDE SOLO EN JSON:
-{{
-    "risk_factors": [
-        {{
-            "description": "Descripción del riesgo detectado",
-            "category": "financial|legal|technical|timeline|requirements|reputation",
-            "severity": "low|medium|high|critical",
-            "probability": 0.1-1.0 (float)
-        }}
-    ],
-    "compliance_status": "approved|pending|rejected", 
-    "gate_passed": true/false,
-    "issues": ["Lista de observaciones textuales (resumen)"]
-}}"""
 
 
 async def risk_audit(

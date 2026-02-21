@@ -28,6 +28,9 @@ from app.agents.prompts.specialist_prompts import (
 from app.agents.prompts.graph_prompts import (
     GRADER_PROMPT_BATCH,
     REFINE_PROMPT,
+    EXTRACTION_AND_STRATEGY_PROMPT,
+    INSIGHT_PROMPT,
+    UNIFIED_RISK_PROMPT_ENHANCED,
 )
 
 __all__ = [
@@ -52,4 +55,7 @@ __all__ = [
     # Graph prompts
     "GRADER_PROMPT_BATCH",
     "REFINE_PROMPT",
+    "EXTRACTION_AND_STRATEGY_PROMPT",
+    "INSIGHT_PROMPT",
+    "UNIFIED_RISK_PROMPT_ENHANCED",
 ]

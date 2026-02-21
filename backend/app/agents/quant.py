@@ -25,79 +25,11 @@ from app.core.config import settings
 from app.core.logging import AgentLogger
 from app.services import get_llm
 from app.agents.utils import parse_json_response as _parse_json_response
+from app.agents.prompts import EXTRACTION_AND_STRATEGY_PROMPT, INSIGHT_PROMPT
 
 logger = AgentLogger("quant")
 
 ChartType = Literal["bar", "line", "pie", "table", "none"]
-
-# Combined prompt: extract numerical data AND select chart strategy in one call
-EXTRACTION_AND_STRATEGY_PROMPT = """Eres un extractor de datos numericos y experto en visualizacion, especializado en documentos de licitaciones.
-
-TAREA DOBLE:
-1. Identifica y extrae TODOS los datos numericos relevantes del contexto para responder la pregunta
-2. Decide la mejor forma de visualizar esos datos
-
-INSTRUCCIONES DE EXTRACCION:
-- Busca montos, porcentajes, cantidades, fechas con valores, metricas
-- Identifica las categorias o etiquetas asociadas a cada numero
-- Detecta si hay series temporales o comparaciones
-- Indica si los datos estan completos o hay valores faltantes
-
-REGLAS DE VISUALIZACION:
-- Comparar volumenes/cantidades -> "bar" (grafico de barras)
-- Evolucion temporal/tendencias -> "line" (grafico de lineas)
-- Distribucion/porcentajes de un todo -> "pie" (grafico circular)
-- Datos tabulares complejos -> "table" (tabla formateada)
-- Valor unico, datos insuficientes o sin datos -> "none" (solo texto)
-
-FORMATO DE RESPUESTA (JSON estricto):
-{{
-    "data_found": true/false,
-    "data_type": "comparison" | "timeline" | "distribution" | "single_value" | "table",
-    "categories": ["categoria1", "categoria2", ...],
-    "values": [valor1, valor2, ...],
-    "unit": "USD" | "ARS" | "%" | "dias" | "unidades" | "otro",
-    "data_quality": "clean" | "sanitized" | "incomplete",
-    "chart_type": "bar" | "line" | "pie" | "table" | "none",
-    "notes": "observaciones sobre los datos"
-}}
-
-Si NO hay datos numericos relevantes, responde:
-{{
-    "data_found": false,
-    "data_type": "none",
-    "categories": [],
-    "values": [],
-    "unit": "",
-    "data_quality": "incomplete",
-    "chart_type": "none",
-    "notes": "No se encontraron datos numericos relevantes para la pregunta"
-}}
-
-Contexto del documento:
-{context}
-
-Pregunta del usuario:
-{question}
-
-Responde SOLO con el JSON, sin texto adicional:"""
-
-# Prompt para generar insight
-INSIGHT_PROMPT = """Eres QuanT, un analista cuantitativo experto. Genera un insight claro y conciso
-basado en los datos y la visualizacion.
-
-INSTRUCCIONES:
-- Comienza con el hallazgo principal (ej: "El presupuesto total es de...")
-- Menciona comparaciones o tendencias si existen
-- Destaca valores criticos en **negrita**
-- Si hay anomalias o datos faltantes, mencionalo
-- Se preciso: usa los numeros exactos del contexto
-
-Tipo de grafico generado: {chart_type}
-Datos analizados: {data}
-Pregunta original: {question}
-
-Genera el insight (2-4 oraciones):"""
 
 
 async def extract_data_and_strategy(context: list[Document], question: str) -> tuple[dict, ChartType]:

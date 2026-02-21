@@ -1,23 +1,4 @@
-"""
-Abstract base class for specialist agents.
-
-This module defines the foundation for all domain-specific specialist agents
-in the RFP Orchestrator. It uses dependency injection for the LLM service
-and provides common functionality for context formatting and message building.
-
-The design follows these principles:
-- Open/Closed Principle: Extend via inheritance, not modification
-- Dependency Injection: LLM is injected, enabling easy testing with mocks
-- Template Method Pattern: Subclasses implement `generate()`, base handles common logic
-
-Example:
-    class LegalSpecialistAgent(BaseSpecialistAgent):
-        DOMAIN = "legal"
-        
-        async def generate(self, question: str, context: list[Document]) -> str:
-            # Custom generation logic
-            ...
-"""
+"""Abstract base class for all domain-specific specialist agents."""
 
 from abc import ABC, abstractmethod
 from typing import Any, List, Optional, Protocol, runtime_checkable
@@ -36,51 +17,19 @@ from app.core.exceptions import AgentProcessingError
 
 @runtime_checkable
 class LLMProtocol(Protocol):
-    """
-    Protocol defining the interface for LLM services.
-    
-    This allows dependency injection of any LLM implementation
-    that satisfies this interface, including mocks for testing.
-    
-    The protocol is runtime_checkable to enable isinstance() checks.
-    """
+    """Interface for injectable LLM services (runtime_checkable for isinstance)."""
 
-    async def ainvoke(self, messages: List[BaseMessage]) -> Any:
-        """
-        Asynchronously invoke the LLM with a list of messages.
-
-        Args:
-            messages: List of messages (SystemMessage, HumanMessage, etc.)
-
-        Returns:
-            LLM response object with a `content` attribute.
-        """
-        ...
+    async def ainvoke(self, messages: List[BaseMessage]) -> Any: ...
 
 
 @runtime_checkable
 class LoggerProtocol(Protocol):
-    """
-    Protocol defining the interface for agent loggers.
-    
-    Allows injection of custom loggers for different environments.
-    """
+    """Interface for injectable agent loggers."""
 
-    def node_enter(self, node_name: str, state: dict) -> None:
-        """Log entry into a node."""
-        ...
-
-    def node_exit(self, node_name: str, message: str) -> None:
-        """Log exit from a node."""
-        ...
-
-    def debug(self, node_name: str, message: str) -> None:
-        """Log debug message."""
-        ...
-
-    def error(self, node_name: str, error: Exception) -> None:
-        """Log error."""
-        ...
+    def node_enter(self, node_name: str, state: dict) -> None: ...
+    def node_exit(self, node_name: str, message: str) -> None: ...
+    def debug(self, node_name: str, message: str) -> None: ...
+    def error(self, node_name: str, error: Exception) -> None: ...
 
 
 # =============================================================================
@@ -89,21 +38,9 @@ class LoggerProtocol(Protocol):
 
 
 class BaseSpecialistAgent(ABC):
-    """
-    Abstract base class for domain-specific specialist agents.
-    
-    Each specialist agent handles questions for a specific domain
-    (legal, technical, financial, etc.) using domain-specific prompts
-    and generation strategies.
+    """Abstract base for domain-specific specialist agents.
 
-    Attributes:
-        DOMAIN: The domain this specialist handles (override in subclass).
-        SYSTEM_PROMPT: The system prompt for this specialist (override in subclass).
-
-    Class Design:
-        - Uses dependency injection for LLM and Logger
-        - Provides common helper methods for context formatting
-        - Defines abstract `generate()` method for subclasses to implement
+    Subclasses must override DOMAIN, SYSTEM_PROMPT, and implement generate().
     """
 
     # Override these in subclasses
@@ -115,13 +52,6 @@ class BaseSpecialistAgent(ABC):
         llm: LLMProtocol,
         logger: Optional[LoggerProtocol] = None,
     ) -> None:
-        """
-        Initialize the specialist agent.
-
-        Args:
-            llm: LLM service implementing LLMProtocol.
-            logger: Optional logger implementing LoggerProtocol.
-        """
         self._llm = llm
         self._logger = logger
 
@@ -174,22 +104,7 @@ class BaseSpecialistAgent(ABC):
         separator: str = "\n\n---\n\n",
         max_length: Optional[int] = None,
     ) -> str:
-        """
-        Format a list of documents into a single context string.
-
-        Args:
-            context: List of documents to format.
-            separator: String to use between document contents.
-            max_length: Optional maximum length for the result.
-
-        Returns:
-            Formatted context string ready for inclusion in prompts.
-
-        Example:
-            >>> docs = [Document(page_content="A"), Document(page_content="B")]
-            >>> agent._format_context(docs)
-            'A\\n\\n---\\n\\nB'
-        """
+        """Join document contents into a single string for prompt inclusion."""
         if not context:
             return ""
 
@@ -207,25 +122,7 @@ class BaseSpecialistAgent(ABC):
         system_prompt: Optional[str] = None,
         include_response_format: bool = True,
     ) -> List[BaseMessage]:
-        """
-        Build the message list for LLM invocation.
-
-        Constructs a list of messages with the system prompt and user question,
-        following the chat format expected by LangChain.
-
-        Args:
-            question: The user's question.
-            context_text: Pre-formatted context string.
-            system_prompt: Override for the default system prompt.
-            include_response_format: Whether to append response format guidelines.
-
-        Returns:
-            List of messages ready for LLM invocation.
-
-        Example:
-            >>> messages = agent._build_messages("What is X?", context)
-            >>> response = await llm.ainvoke(messages)
-        """
+        """Build [SystemMessage, HumanMessage] list for LLM invocation."""
         # Use provided prompt or get from prompts module
         if system_prompt:
             full_system = system_prompt
