@@ -18,7 +18,7 @@ Para poder responder tu pregunta, por favor:
 Una vez que hayas cargado los documentos de licitación, podré analizar y responder preguntas específicas sobre su contenido.`;
 
 export default function App() {
-  const { loading, error, uploadDocument, askQuestion, clearError } = useRFP();
+  const { loading, error, uploadProgress, uploadDocumentStream, askQuestion, clearError } = useRFP();
   const [messages, setMessages] = useState<Message[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -32,7 +32,7 @@ export default function App() {
   }, [messages]);
 
   const handleUpload = async (file: File) => {
-    const result = await uploadDocument(file);
+    const result = await uploadDocumentStream(file);
     if (result) {
       setDocuments((prev) => [
         ...prev,
@@ -81,7 +81,7 @@ export default function App() {
   return (
     <div className="h-screen bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900 text-slate-100 flex overflow-hidden">
       {/* Sidebar */}
-      <Sidebar documents={documents} onUpload={handleUpload} loading={loading} />
+      <Sidebar documents={documents} onUpload={handleUpload} loading={loading} uploadProgress={uploadProgress} />
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">

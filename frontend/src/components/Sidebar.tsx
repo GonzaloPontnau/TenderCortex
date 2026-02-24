@@ -1,13 +1,23 @@
 import { useState } from "react";
-import type { Document } from "../types";
+import type { Document, UploadProgress } from "../types";
+
+const PHASE_CONFIG: Record<string, { label: string; percent: number; color: string }> = {
+  parsing:   { label: "Extrayendo texto",    percent: 15,  color: "from-blue-500 to-blue-400" },
+  splitting: { label: "Dividiendo en chunks", percent: 30,  color: "from-cyan-500 to-cyan-400" },
+  embedding: { label: "Generando embeddings", percent: 60,  color: "from-orange-500 to-amber-400" },
+  indexing:  { label: "Indexando",            percent: 90,  color: "from-emerald-500 to-green-400" },
+  done:      { label: "Completado",           percent: 100, color: "from-emerald-500 to-green-400" },
+  error:     { label: "Error",                percent: 100, color: "from-red-500 to-red-400" },
+};
 
 interface SidebarProps {
   documents: Document[];
   onUpload: (file: File) => Promise<{ chunks_processed: number } | null>;
   loading: boolean;
+  uploadProgress: UploadProgress | null;
 }
 
-export function Sidebar({ documents, onUpload, loading }: SidebarProps) {
+export function Sidebar({ documents, onUpload, loading, uploadProgress }: SidebarProps) {
   const [dragOver, setDragOver] = useState(false);
 
   const handleDrop = async (e: React.DragEvent) => {
@@ -25,6 +35,19 @@ export function Sidebar({ documents, onUpload, loading }: SidebarProps) {
       await onUpload(file);
       e.target.value = "";
     }
+  };
+
+  const phaseInfo = uploadProgress ? PHASE_CONFIG[uploadProgress.phase] : null;
+
+  // Calculate embedding progress within its range (30% → 90%)
+  const getProgressPercent = (): number => {
+    if (!uploadProgress || !phaseInfo) return 0;
+    if (uploadProgress.phase === "embedding" && uploadProgress.batch_total && uploadProgress.batch_current) {
+      const embeddingBase = 30;
+      const embeddingRange = 60; // 30% → 90%
+      return embeddingBase + (uploadProgress.batch_current / uploadProgress.batch_total) * embeddingRange;
+    }
+    return phaseInfo.percent;
   };
 
   return (
@@ -72,7 +95,44 @@ export function Sidebar({ documents, onUpload, loading }: SidebarProps) {
             className="hidden"
             disabled={loading}
           />
-          {loading ? (
+          {loading && uploadProgress ? (
+            <div className="flex flex-col items-center gap-3">
+              {/* Phase icon */}
+              {uploadProgress.phase !== "done" && uploadProgress.phase !== "error" ? (
+                <div className="w-10 h-10 border-2 border-orange-500/50 border-t-orange-500 rounded-full animate-spin" />
+              ) : uploadProgress.phase === "done" ? (
+                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+              )}
+
+              {/* Message */}
+              <span className="text-sm text-slate-300 font-medium">
+                {uploadProgress.message}
+              </span>
+
+              {/* Progress bar */}
+              <div className="w-full bg-slate-800/60 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className={`h-full rounded-full bg-gradient-to-r ${phaseInfo?.color || "from-orange-500 to-amber-400"} transition-all duration-500 ease-out`}
+                  style={{ width: `${getProgressPercent()}%` }}
+                />
+              </div>
+
+              {/* Phase label */}
+              <span className="text-[10px] text-slate-500 uppercase tracking-wider">
+                {phaseInfo?.label || uploadProgress.phase}
+              </span>
+            </div>
+          ) : loading ? (
             <div className="flex flex-col items-center gap-3">
               <div className="w-10 h-10 border-2 border-orange-500/50 border-t-orange-500 rounded-full animate-spin" />
               <span className="text-sm text-slate-400">Procesando...</span>

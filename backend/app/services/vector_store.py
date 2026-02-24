@@ -1,8 +1,10 @@
 import asyncio
+import time
 import uuid
+from collections.abc import AsyncGenerator
 from functools import lru_cache, wraps
 from pathlib import Path
-from typing import Callable, TypeVar
+from typing import Any, Callable, TypeVar
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
@@ -106,11 +108,15 @@ class RAGService:
         - All vectors are inserted in a single Qdrant upsert call
         """
         source_name = original_filename or file_path.name
+        t_start = time.monotonic()
 
         try:
             loader = PyPDFLoader(str(file_path))
             pages = await asyncio.to_thread(loader.load)
+            t_parsed = time.monotonic()
+
             chunks = await asyncio.to_thread(self._splitter.split_documents, pages)
+            t_split = time.monotonic()
 
             if not chunks:
                 logger.warning(f"No se generaron chunks de '{source_name}'")
@@ -122,30 +128,111 @@ class RAGService:
             # Embed all chunks — parallel batches saturate the API concurrently
             texts = [chunk.page_content for chunk in chunks]
             vectors = await self._embed_texts(texts)
+            t_embed = time.monotonic()
 
             # Single upsert for all points (one round-trip to Qdrant)
-            points = [
-                PointStruct(
-                    id=str(uuid.uuid4()),
-                    vector=vector,
-                    payload={
-                        "page_content": chunk.page_content,
-                        "metadata": chunk.metadata,
-                    },
-                )
-                for chunk, vector in zip(chunks, vectors)
-            ]
+            points = self._build_points(chunks, vectors)
+            await asyncio.to_thread(
+                self._client.upsert,
+                collection_name=COLLECTION_NAME,
+                points=points,
+            )
+            t_upsert = time.monotonic()
+
+            elapsed = t_upsert - t_start
+            logger.info(
+                f"Ingestados {len(chunks)} chunks de '{source_name}' en {elapsed:.1f}s "
+                f"(parse={t_parsed - t_start:.1f}s, split={t_split - t_parsed:.1f}s, "
+                f"embed={t_embed - t_split:.1f}s, upsert={t_upsert - t_embed:.1f}s)"
+            )
+            return len(chunks)
+        except Exception as e:
+            logger.error(f"Error procesando documento '{file_path}': {e}")
+            raise
+
+    @_ensure_initialized
+    async def ingest_document_streaming(
+        self, file_path: Path, original_filename: str | None = None
+    ) -> AsyncGenerator[dict[str, Any], None]:
+        """Procesa un PDF con eventos de progreso via async generator.
+
+        Yields dicts con llaves: phase, message, y datos opcionales.
+        Fases: parsing -> splitting -> embedding -> indexing -> done.
+        """
+        source_name = original_filename or file_path.name
+        t_start = time.monotonic()
+
+        try:
+            # Phase 1: Parse PDF
+            yield {"phase": "parsing", "message": "Extrayendo texto del PDF..."}
+            loader = PyPDFLoader(str(file_path))
+            pages = await asyncio.to_thread(loader.load)
+
+            # Phase 2: Split into chunks
+            yield {"phase": "splitting", "message": f"Dividiendo {len(pages)} paginas en chunks..."}
+            chunks = await asyncio.to_thread(self._splitter.split_documents, pages)
+
+            if not chunks:
+                logger.warning(f"No se generaron chunks de '{source_name}'")
+                yield {"phase": "done", "message": "Sin contenido extraible", "chunks": 0, "elapsed_seconds": 0}
+                return
+
+            for chunk in chunks:
+                chunk.metadata["source"] = source_name
+
+            # Phase 3: Embed in batches with progress
+            texts = [chunk.page_content for chunk in chunks]
+            batch_size = settings.embedding_batch_size
+            batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
+            total_batches = len(batches)
+
+            all_vectors: list[list[float]] = []
+            for idx, batch in enumerate(batches, 1):
+                yield {
+                    "phase": "embedding",
+                    "message": f"Generando embeddings... (lote {idx}/{total_batches})",
+                    "batch_current": idx,
+                    "batch_total": total_batches,
+                }
+                batch_vectors = await asyncio.to_thread(self._embeddings.embed_documents, batch)
+                all_vectors.extend(batch_vectors)
+
+            # Phase 4: Index into Qdrant
+            yield {"phase": "indexing", "message": "Indexando en vector store..."}
+            points = self._build_points(chunks, all_vectors)
             await asyncio.to_thread(
                 self._client.upsert,
                 collection_name=COLLECTION_NAME,
                 points=points,
             )
 
-            logger.info(f"Ingestados {len(chunks)} chunks de '{source_name}'")
-            return len(chunks)
+            elapsed = time.monotonic() - t_start
+            logger.info(f"Ingestados {len(chunks)} chunks de '{source_name}' en {elapsed:.1f}s (streaming)")
+            yield {
+                "phase": "done",
+                "message": f"Documento procesado ({len(chunks)} chunks en {elapsed:.1f}s)",
+                "chunks": len(chunks),
+                "elapsed_seconds": round(elapsed, 1),
+            }
         except Exception as e:
             logger.error(f"Error procesando documento '{file_path}': {e}")
+            yield {"phase": "error", "message": f"Error: {str(e)}"}
             raise
+
+    @staticmethod
+    def _build_points(chunks: list[Document], vectors: list[list[float]]) -> list[PointStruct]:
+        """Construye PointStruct list para upsert en Qdrant."""
+        return [
+            PointStruct(
+                id=str(uuid.uuid4()),
+                vector=vector,
+                payload={
+                    "page_content": chunk.page_content,
+                    "metadata": chunk.metadata,
+                },
+            )
+            for chunk, vector in zip(chunks, vectors)
+        ]
 
     @_ensure_initialized
     async def similarity_search(self, query: str, k: int = 10) -> list[Document]:

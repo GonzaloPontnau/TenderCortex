@@ -1,9 +1,12 @@
 """Endpoints de gestion documental para el indice vectorial."""
 
+import json
 import tempfile
+from collections.abc import AsyncGenerator
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, UploadFile, status
+from fastapi.responses import StreamingResponse
 
 from app.api.routes.chat import invalidate_cache
 from app.core.logging import get_logger
@@ -14,20 +17,33 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 
+async def _save_upload_to_temp(file: UploadFile) -> Path:
+    """Guarda un UploadFile a un archivo temporal y retorna el path."""
+    tmp_path = Path(tempfile.mktemp(suffix=".pdf"))
+    with open(tmp_path, "wb") as tmp:
+        while chunk := await file.read(1024 * 256):
+            tmp.write(chunk)
+    return tmp_path
+
+
+def _validate_pdf(file: UploadFile) -> None:
+    """Valida que el archivo sea un PDF."""
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Solo se permiten archivos PDF",
+        )
+
+
 @router.post("/ingest", response_model=IngestResponse)
 async def ingest_document(file: UploadFile) -> IngestResponse:
     """Procesa un PDF y lo indexa en el vector store."""
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Solo se permiten archivos PDF")
+    _validate_pdf(file)
 
     original_filename = file.filename
     tmp_path: Path | None = None
     try:
-        tmp_path = Path(tempfile.mktemp(suffix=".pdf"))
-        with open(tmp_path, "wb") as tmp:
-            while chunk := await file.read(1024 * 256):
-                tmp.write(chunk)
-
+        tmp_path = await _save_upload_to_temp(file)
         rag = get_rag_service()
         chunks = await rag.ingest_document(tmp_path, original_filename=original_filename)
         invalidate_cache()
@@ -42,6 +58,45 @@ async def ingest_document(file: UploadFile) -> IngestResponse:
     finally:
         if tmp_path:
             tmp_path.unlink(missing_ok=True)
+
+
+@router.post("/ingest/stream")
+async def ingest_document_stream(file: UploadFile) -> StreamingResponse:
+    """Procesa un PDF con progreso en tiempo real via Server-Sent Events.
+
+    Emite eventos SSE con formato:
+        data: {"phase": "parsing", "message": "Extrayendo texto del PDF..."}
+        data: {"phase": "embedding", "message": "...", "batch_current": 1, "batch_total": 3}
+        data: {"phase": "done", "message": "...", "chunks": 42, "elapsed_seconds": 8.3}
+    """
+    _validate_pdf(file)
+
+    original_filename = file.filename
+    tmp_path = await _save_upload_to_temp(file)
+
+    async def event_stream() -> AsyncGenerator[str, None]:
+        try:
+            rag = get_rag_service()
+            async for event in rag.ingest_document_streaming(
+                tmp_path, original_filename=original_filename
+            ):
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+                if event.get("phase") == "done":
+                    invalidate_cache()
+        except Exception as e:
+            logger.error(f"Error en ingesta streaming: {e}")
+            yield f"data: {json.dumps({'phase': 'error', 'message': str(e)})}\n\n"
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.delete("/index")

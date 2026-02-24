@@ -48,6 +48,17 @@ export interface IngestResponse {
   chunks_processed: number;
 }
 
+export type UploadPhase = "parsing" | "splitting" | "embedding" | "indexing" | "done" | "error";
+
+export interface UploadProgress {
+  phase: UploadPhase;
+  message: string;
+  chunks?: number;
+  elapsed_seconds?: number;
+  batch_current?: number;
+  batch_total?: number;
+}
+
 export interface ChatResponse {
   answer: string;
   sources: string[];
