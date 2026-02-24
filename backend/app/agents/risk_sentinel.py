@@ -111,14 +111,17 @@ async def risk_audit(
                             source_agent="RiskSentinel"
                         ))
                     except Exception as conv_err:
-                        logger.warning(f"Skipping malformed risk factor: {conv_err}")
+                        logger.debug("risk_audit", f"Skipping malformed risk factor: {conv_err}")
                 
                 if risk_inputs:
                     calc = RiskScoreCalculator(allow_empty_risks=True)
                     assessment = calc.calculate(risk_inputs)
                     
                     # Override outcomes based on deterministic calculation
-                    logger.info(f"Risk Score Calculated: {assessment.total_score} ({assessment.recommendation.value})")
+                    logger.debug(
+                        "risk_audit",
+                        f"Risk Score Calculated: {assessment.total_score} ({assessment.recommendation.value})",
+                    )
                     
                     # Map Recommendation to ComplianceStatus
                     if assessment.recommendation == Recommendation.GO:
@@ -148,7 +151,7 @@ async def risk_audit(
                         issues.append(f"[RiskScore] KILL SWITCH ACTIVATED: {assessment.recommendation_reason}")
 
             except Exception as s_err:
-                logger.error(f"Skill 'risk-score-calculator' execution failed: {s_err}")
+                logger.error("risk_audit", s_err)
         # ------------------------------------------------
 
         # Validaciones finales

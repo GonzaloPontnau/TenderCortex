@@ -30,6 +30,7 @@ from langchain_core.messages import AIMessage
 # But we assume they work as per previous steps.
 
 @pytest.mark.asyncio
+@pytest.mark.integration
 class TestSkillIntegration:
 
     async def test_technical_agent_uses_tech_mapper(self):
@@ -146,7 +147,10 @@ class TestSkillIntegration:
             # Logic: If High Risk > 0, returns (GO, "but review high risks").
             
             risk_level, compliance, issues, gate = await risk_audit(
-                answer="Proposed solution cost is high.",
+                answer=(
+                    "The proposed solution cost is significantly higher than budget and "
+                    "could impact financial feasibility unless scope adjustments are made."
+                ),
                 context=[Document(page_content="Budget is low.")],
                 question="Is it viable?"
             )

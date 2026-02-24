@@ -14,6 +14,7 @@ Author: TenderCortex Team
 import logging
 import os
 import re
+import importlib.util
 from collections import Counter
 from pathlib import Path
 from typing import Optional
@@ -44,15 +45,23 @@ try:
     )
 except ImportError:
     # Fallback for standalone testing
-    from definition import (
-        DocumentChunk,
-        EncryptedPDFError,
-        InvalidPDFError,
-        ProcessingStrategy,
-        ProcessingTimeoutError,
-        RFPLoaderInput,
-        RFPLoaderOutput,
+    definition_path = Path(__file__).with_name("definition.py")
+    spec = importlib.util.spec_from_file_location(
+        "rfp_document_loader_definition_fallback",
+        definition_path,
     )
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not load definition module from {definition_path}")
+    definition_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(definition_module)
+
+    DocumentChunk = definition_module.DocumentChunk
+    EncryptedPDFError = definition_module.EncryptedPDFError
+    InvalidPDFError = definition_module.InvalidPDFError
+    ProcessingStrategy = definition_module.ProcessingStrategy
+    ProcessingTimeoutError = definition_module.ProcessingTimeoutError
+    RFPLoaderInput = definition_module.RFPLoaderInput
+    RFPLoaderOutput = definition_module.RFPLoaderOutput
 
 logger = logging.getLogger(__name__)
 
