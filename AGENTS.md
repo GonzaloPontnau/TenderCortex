@@ -10,15 +10,15 @@
 
 ### Stack Tecnológico Principal
 
-| Capa | Tecnología | Notas |
-|------|------------|-------|
-| **Orquestación** | LangGraph | State machines con subagentes especializados |
-| **LLM** | Groq API (`openai/gpt-oss-120b`) | Alta velocidad, bajo costo |
-| **Embeddings** | HuggingFace Inference API | Cloud-based (ahorra RAM) |
-| **Vector DB** | Qdrant (In-Memory) | Efímero por diseño, zero-maintenance |
-| **Backend** | FastAPI (Python 3.11+) | Async, Pydantic V2 |
-| **Frontend** | React + TypeScript + Vite | TailwindCSS para estilos |
-| **Ingesta** | Docling | Extracción de PDF |
+| Capa             | Tecnología                       | Notas                                        |
+| ---------------- | -------------------------------- | -------------------------------------------- |
+| **Orquestación** | LangGraph                        | State machines con subagentes especializados |
+| **LLM**          | Groq API (`openai/gpt-oss-120b`) | Alta velocidad, bajo costo                   |
+| **Embeddings**   | HuggingFace Inference API        | Cloud-based (ahorra RAM)                     |
+| **Vector DB**    | Qdrant (In-Memory)               | Efímero por diseño, zero-maintenance         |
+| **Backend**      | FastAPI (Python 3.11+)           | Async, Pydantic V2                           |
+| **Frontend**     | React + TypeScript + Vite        | TailwindCSS para estilos                     |
+| **Ingesta**      | Docling                          | Extracción de PDF                            |
 
 ### Arquitectura de Despliegue
 
@@ -72,12 +72,32 @@ npm run build
 npm run lint
 ```
 
+### Spec & OpenAPI Validation
+
+```bash
+# Export and validate OpenAPI spec
+cd backend
+python scripts/export_openapi.py
+python scripts/validate_openapi.py
+
+# Check spec consistency (SPEC.md ↔ code)
+python scripts/check_specs.py
+
+# Run BDD specs
+pytest tests/bdd -v
+
+# Run full test suite with coverage
+pytest --cov=app --cov-report=term-missing
+```
+
 ### Validación Pre-Commit
 
 > [!IMPORTANT]
 > **Antes de cualquier commit**, ejecutar:
+>
 > ```bash
 > cd backend && pytest -v
+> cd backend && python scripts/check_specs.py
 > cd frontend && npm run build
 > ```
 
@@ -95,7 +115,7 @@ from pydantic import BaseModel, Field
 
 class QueryRequest(BaseModel):
     """Request para consultas al sistema."""
-    
+
     question: str = Field(
         ...,
         min_length=3,
@@ -152,14 +172,14 @@ print("Processing...")  # NO!
 # ✅ CORRECTO: Docstrings en español (proyecto bilingüe)
 def retrieve_documents(query: str, k: int = 10) -> list[Document]:
     """Recupera documentos relevantes del vector store.
-    
+
     Args:
         query: Texto de búsqueda.
         k: Número de documentos a recuperar.
-    
+
     Returns:
         Lista de documentos ordenados por relevancia.
-    
+
     Raises:
         VectorStoreError: Si el store no está disponible.
     """
@@ -198,11 +218,13 @@ export class ChatMessage extends React.Component<any> { ... }
 export function useRFP(): UseRFPReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  const askQuestion = async (question: string): Promise<QueryResponse | null> => {
+
+  const askQuestion = async (
+    question: string,
+  ): Promise<QueryResponse | null> => {
     // ...
   };
-  
+
   return { loading, error, askQuestion };
 }
 ```
@@ -229,6 +251,13 @@ export function useRFP(): UseRFPReturn {
 ├── ARCHITECTURE.md        # Documentación técnica detallada
 ├── README.md              # Documentación para usuarios
 │
+├── SPEC_TEMPLATES/        # 📐 Templates para Spec-Driven Development
+│   ├── AGENT_SPEC.md              # Template para specs de agentes
+│   ├── ENDPOINT_SPEC.md           # Template para specs de endpoints
+│   ├── NODE_SPEC.md               # Template para specs de nodos
+│   ├── SERVICE_SPEC.md            # Template para specs de servicios
+│   └── SKILL_SPEC.md              # Template para specs de skills
+│
 ├── backend/
 │   ├── app/
 │   │   ├── agents/        # 🧠 LangGraph: flujos y subagentes
@@ -254,16 +283,27 @@ export function useRFP(): UseRFPReturn {
 │   │   │
 │   │   └── main.py        # 🚀 Entry point de la aplicación
 │   │
+│   ├── scripts/           # 🔧 Tooling scripts
+│   │   ├── check_specs.py         # Verifica consistencia SPEC ↔ código
+│   │   └── generate_spec_tests.py # Genera test stubs desde SPECs
+│   │
 │   ├── skills/            # 🎯 Skills del PRODUCTO (NO de desarrollo)
 │   │   ├── compliance-audit-validator/
-│   │   │   ├── SKILL.md           # Documentación para agentes LLM
+│   │   │   ├── SKILL.md           # Documentación + Invariants + Error Cases
 │   │   │   ├── definition.py      # Modelos Pydantic
 │   │   │   └── impl.py            # Implementación
 │   │   └── ...
 │   │
 │   ├── tests/             # 🧪 Tests
 │   │   ├── conftest.py            # Fixtures compartidas
-│   │   └── unit/
+│   │   ├── unit/
+│   │   └── bdd/           # 🥒 BDD Feature specs
+│   │       ├── features/
+│   │       │   ├── agents/        # Specs para agentes especialistas
+│   │       │   ├── api/           # Specs para endpoints
+│   │       │   ├── pipeline/      # Specs para nodos del pipeline
+│   │       │   └── skills/        # Specs para skills
+│   │       └── step_defs/         # Step definitions (pytest-bdd)
 │   │
 │   ├── requirements.txt
 │   ├── pytest.ini
@@ -314,11 +354,11 @@ class AgentState(TypedDict):
     answer: str                      # Respuesta generada
     audit_result: str                # pass/fail
     revision_count: int              # Iteraciones de refinamiento
-    
+
     # QuanT (análisis cuantitativo)
     quant_chart: str | None
     quant_insights: str | None
-    
+
     # Risk Sentinel (compliance)
     risk_level: str | None
     compliance_status: str | None
@@ -328,15 +368,15 @@ class AgentState(TypedDict):
 
 ### Dominios de Subagentes
 
-| Dominio | Palabras Clave | Especialización |
-|---------|----------------|-----------------|
-| `legal` | contrato, cláusula, jurisdicción | Normativa y compliance |
-| `financial` | presupuesto, pago, garantía | Análisis financiero |
-| `technical` | arquitectura, API, integración | Requisitos técnicos |
-| `timeline` | fecha, plazo, cronograma | Gestión temporal |
-| `requirements` | requisitos, experiencia, personal | Elegibilidad |
-| `quantitative` | comparar, porcentaje, gráfico | Análisis de datos |
-| `general` | (fallback) | Consultas generales |
+| Dominio        | Palabras Clave                    | Especialización        |
+| -------------- | --------------------------------- | ---------------------- |
+| `legal`        | contrato, cláusula, jurisdicción  | Normativa y compliance |
+| `financial`    | presupuesto, pago, garantía       | Análisis financiero    |
+| `technical`    | arquitectura, API, integración    | Requisitos técnicos    |
+| `timeline`     | fecha, plazo, cronograma          | Gestión temporal       |
+| `requirements` | requisitos, experiencia, personal | Elegibilidad           |
+| `quantitative` | comparar, porcentaje, gráfico     | Análisis de datos      |
+| `general`      | (fallback)                        | Consultas generales    |
 
 ### Crear un Nuevo Subagente
 
@@ -346,18 +386,18 @@ from app.agents.base_agent import BaseAgent
 
 class YourNewAgent(BaseAgent):
     """Agente especializado en [DOMINIO]."""
-    
+
     domain = "your_domain"
-    
+
     def _get_system_prompt(self) -> str:
         return """Eres un experto en [DOMINIO]...
-        
+
         REGLAS:
         1. Responde SOLO basándote en el contexto proporcionado
         2. Si no hay información, indica que no está disponible
         3. Cita las fuentes cuando sea posible
         """
-    
+
     def _format_context(self, docs: list[Document]) -> str:
         # Formateo específico del dominio
         return "\n\n".join(doc.page_content for doc in docs)
@@ -395,25 +435,31 @@ description: |
 # My Skill Name
 
 ## Propósito
+
 [Descripción detallada]
 
 ## Cuándo Usar
+
 - [Caso de uso 1]
 - [Caso de uso 2]
 
 ## Cuándo NO Usar
+
 - [Anti-patrón 1]
 - [Anti-patrón 2]
 
 ## Entrada
-| Parámetro | Tipo | Requerido | Descripción |
-|-----------|------|-----------|-------------|
-| `param1` | `str` | ✅ | [Descripción] |
+
+| Parámetro | Tipo  | Requerido | Descripción   |
+| --------- | ----- | --------- | ------------- |
+| `param1`  | `str` | ✅        | [Descripción] |
 
 ## Salida
+
 [Descripción de la respuesta estructurada]
 
 ## Ejemplos (Few-Shot)
+
 [Mínimo 2-3 ejemplos de invocación]
 ```
 
@@ -431,7 +477,7 @@ class MySkillStatus(str, Enum):
 
 class MySkillInput(BaseModel):
     """Input schema con validación."""
-    
+
     query: str = Field(
         ...,
         min_length=10,
@@ -441,7 +487,7 @@ class MySkillInput(BaseModel):
         default="standard",
         description="Modo de operación: 'standard' o 'detailed'."
     )
-    
+
     @field_validator("query")
     @classmethod
     def normalize_query(cls, v: str) -> str:
@@ -449,7 +495,7 @@ class MySkillInput(BaseModel):
 
 class MySkillOutput(BaseModel):
     """Output estructurado."""
-    
+
     status: MySkillStatus
     result: str
     confidence: float = Field(ge=0.0, le=1.0)
@@ -457,7 +503,94 @@ class MySkillOutput(BaseModel):
 
 ---
 
-## 7. API & Schema Patterns
+## 7. Spec-Driven Development (SDD) Workflow
+
+> [!IMPORTANT]
+> TenderCortex sigue un enfoque **Spec-First**: toda funcionalidad nueva debe tener una especificación antes de la implementación.
+
+### Proceso de 4 Pasos
+
+```
+1. Write Spec  →  2. Generate Tests  →  3. Implement  →  4. Validate
+   (SPEC.md)       (BDD + pytest)        (code)          (check_specs)
+```
+
+### Paso 1: Escribir la Especificación
+
+Usar el template correspondiente de `SPEC_TEMPLATES/`:
+
+| Componente          | Template           | Ubicación del spec                 |
+| ------------------- | ------------------ | ---------------------------------- |
+| Agente especialista | `AGENT_SPEC.md`    | `app/agents/specialists/SPEC_*.md` |
+| Nodo del pipeline   | `NODE_SPEC.md`     | `app/agents/nodes/SPEC_*.md`       |
+| Servicio            | `SERVICE_SPEC.md`  | `app/services/SPEC_*.md`           |
+| Endpoint            | `ENDPOINT_SPEC.md` | `app/api/SPEC_*.md`                |
+| Skill               | `SKILL_SPEC.md`    | `skills/<name>/SKILL.md`           |
+
+Cada spec debe incluir:
+
+- **Behavior Specification** (happy path + error cases)
+- **Invariants** (condiciones que siempre deben cumplirse)
+- **Error Cases** (tabla con condición, comportamiento, y recuperación)
+
+### Paso 2: Generar Tests
+
+```bash
+# Generar test stubs desde SPECs
+python scripts/generate_spec_tests.py
+
+# Los tests generados van a tests/unit/spec/test_spec_*.py
+# Cada test tiene @pytest.mark.spec y skip('Not implemented yet')
+```
+
+Opcionalmente, escribir BDD features en `tests/bdd/features/`:
+
+```gherkin
+# tests/bdd/features/pipeline/my_node.feature
+Feature: My Node Behavior
+  As the pipeline orchestrator
+  I want my_node to process state correctly
+  So that downstream nodes receive valid data
+
+  Scenario: Happy path processing
+    Given a state with 5 filtered documents
+    When my_node processes the state
+    Then the output contains a valid answer
+    And the audit result is "pass"
+```
+
+### Paso 3: Implementar
+
+Implementar la funcionalidad siguiendo las convenciones de código (Sección 3). Los tests generados en Paso 2 guían la implementación.
+
+### Paso 4: Validar Consistencia
+
+```bash
+# Verificar que todo componente tiene su spec
+python scripts/check_specs.py
+
+# Ejecutar BDD specs
+pytest tests/bdd -v -m bdd
+
+# Ejecutar spec-driven tests
+pytest -m spec -v
+
+# Suite completa con cobertura
+pytest --cov=app --cov-report=term-missing
+```
+
+### Markers de Tests
+
+| Marker                     | Uso                                  |
+| -------------------------- | ------------------------------------ |
+| `@pytest.mark.bdd`         | Tests BDD (feature files)            |
+| `@pytest.mark.spec`        | Tests generados desde SPECs          |
+| `@pytest.mark.slow`        | Tests lentos (excluir en CI rápido)  |
+| `@pytest.mark.integration` | Tests de integración con APIs reales |
+
+---
+
+## 8. API & Schema Patterns
 
 ### Response con Trazabilidad
 
@@ -466,7 +599,7 @@ Todas las respuestas del API deben incluir `agent_metadata`:
 ```python
 class AgentMetadata(BaseModel):
     """Metadata de trazabilidad del pipeline."""
-    
+
     domain: str = Field(description="Dominio del subagente usado")
     specialist_used: str = Field(description="Nombre del especialista")
     documents_retrieved: int
@@ -510,7 +643,7 @@ async def chat(request: QueryRequest) -> QueryResponse:
 
 ---
 
-## 8. Testing Standards
+## 9. Testing Standards
 
 ### Configuración (pytest.ini)
 
@@ -535,27 +668,27 @@ from app.services.my_service import MyService
 
 class TestMyService:
     """Tests para MyService."""
-    
+
     @pytest.fixture
     def service(self):
         """Fixture para crear instancia del servicio."""
         return MyService()
-    
+
     async def test_process_valid_input(self, service):
         """Verifica procesamiento de input válido."""
         result = await service.process("valid query")
         assert result.status == "success"
-    
+
     async def test_process_empty_raises(self, service):
         """Verifica que input vacío lanza excepción."""
         with pytest.raises(ValueError):
             await service.process("")
-    
+
     @pytest.mark.slow
     async def test_process_large_document(self, service):
         """Test con documento grande (marcado como slow)."""
         ...
-    
+
     @pytest.mark.integration
     async def test_with_real_llm(self, service):
         """Test de integración con Groq API real."""
@@ -587,31 +720,31 @@ def sample_documents():
 
 ---
 
-## 9. Boundaries & Prohibitions
+## 10. Boundaries & Prohibitions
 
 ### ❌ NUNCA Hacer
 
-| Prohibición | Razón |
-|-------------|-------|
-| Commitear `.env` o API keys | Seguridad - keys en variables de entorno |
-| Modificar `dist/`, `node_modules/`, `__pycache__/` | Archivos generados |
-| Usar `print()` en backend | Usar `AgentLogger` para trazabilidad |
-| Crear dependencias circulares | Rompe imports, dificulta testing |
-| Usar `any` en TypeScript | Pierde type safety |
-| Hardcodear URLs de API | Usar variables de entorno |
-| Ignorar errores silenciosamente | Siempre loggear o propagar |
-| Modificar `AGENTS.md` sin revisión | Guía operativa del proyecto |
+| Prohibición                                        | Razón                                    |
+| -------------------------------------------------- | ---------------------------------------- |
+| Commitear `.env` o API keys                        | Seguridad - keys en variables de entorno |
+| Modificar `dist/`, `node_modules/`, `__pycache__/` | Archivos generados                       |
+| Usar `print()` en backend                          | Usar `AgentLogger` para trazabilidad     |
+| Crear dependencias circulares                      | Rompe imports, dificulta testing         |
+| Usar `any` en TypeScript                           | Pierde type safety                       |
+| Hardcodear URLs de API                             | Usar variables de entorno                |
+| Ignorar errores silenciosamente                    | Siempre loggear o propagar               |
+| Modificar `AGENTS.md` sin revisión                 | Guía operativa del proyecto              |
 
 ### ✅ SIEMPRE Hacer
 
-| Regla | Ejemplo |
-|-------|---------|
+| Regla                             | Ejemplo                                           |
+| --------------------------------- | ------------------------------------------------- |
 | Ejecutar tests antes de confirmar | `pytest -v` (backend), `npm run build` (frontend) |
-| Type hints en todas las funciones | `def process(query: str) -> Result:` |
-| Descripciones en campos Pydantic | `Field(..., description="...")` |
-| Manejar errores explícitamente | `try/except` con logging |
-| Documentar funciones públicas | Docstrings con Args, Returns, Raises |
-| Usar async para I/O | `async def`, `await` |
+| Type hints en todas las funciones | `def process(query: str) -> Result:`              |
+| Descripciones en campos Pydantic  | `Field(..., description="...")`                   |
+| Manejar errores explícitamente    | `try/except` con logging                          |
+| Documentar funciones públicas     | Docstrings con Args, Returns, Raises              |
+| Usar async para I/O               | `async def`, `await`                              |
 
 ### Archivos Intocables
 
@@ -625,7 +758,7 @@ frontend/.env                   # URLs de API
 
 ---
 
-## 10. Deployment Notes
+## 11. Deployment Notes
 
 ### Arquitectura de Producción
 
@@ -647,6 +780,7 @@ frontend/.env                   # URLs de API
 ### Variables de Entorno Requeridas
 
 **Backend (Render):**
+
 ```plaintext
 GROQ_API_KEY=gsk_...
 GROQ_MODEL=openai/gpt-oss-120b
@@ -656,6 +790,7 @@ LOG_LEVEL=INFO
 ```
 
 **Frontend (Vercel):**
+
 ```plaintext
 VITE_API_URL=https://multi-agent-rfp-orchestrator-backend.onrender.com
 ```
@@ -685,6 +820,14 @@ VITE_API_URL=https://multi-agent-rfp-orchestrator-backend.onrender.com
 │ VALIDATE                                                        │
 │   Backend:  pytest -v                                           │
 │   Frontend: npm run build                                       │
+│   Specs:    python scripts/check_specs.py                      │
+│   BDD:      pytest tests/bdd -v -m bdd                         │
+│                                                                 │
+│ SDD WORKFLOW                                                    │
+│   1. Write spec   → SPEC_TEMPLATES/<type>_SPEC.md              │
+│   2. Gen tests    → python scripts/generate_spec_tests.py      │
+│   3. Implement    → follow spec behaviors                      │
+│   4. Validate     → python scripts/check_specs.py              │
 │                                                                 │
 │ KEY FILES                                                       │
 │   Grafo LangGraph:    backend/app/agents/rfp_graph.py          │
@@ -703,5 +846,5 @@ VITE_API_URL=https://multi-agent-rfp-orchestrator-backend.onrender.com
 
 ---
 
-*Last updated: 2026-02-04*
-*Version: 1.0.0*
+_Last updated: 2026-02-23_
+_Version: 2.0.0_

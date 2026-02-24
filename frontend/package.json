@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate-types": "npx openapi-typescript ../backend/openapi.json -o src/generated/api-types.ts"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",

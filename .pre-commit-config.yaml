@@ -1,0 +1,34 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: openapi-validate
+        name: Validate OpenAPI spec
+        entry: python backend/scripts/validate_openapi.py
+        language: python
+        pass_filenames: false
+        files: ^backend/(app/|openapi\.json)
+        additional_dependencies: ['openapi-spec-validator>=0.7.0']
+
+      - id: spec-consistency
+        name: Check spec consistency
+        entry: python backend/scripts/check_specs.py
+        language: python
+        pass_filenames: false
+        files: ^backend/
