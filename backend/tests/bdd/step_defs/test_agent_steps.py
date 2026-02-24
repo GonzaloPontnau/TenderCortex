@@ -1,5 +1,6 @@
 """Step definitions for specialist agent BDD features."""
 
+import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -145,7 +146,7 @@ async def _run_specialist(agent_ctx, domain):
         container = MagicMock()
         agent = AsyncMock()
         answer = f"Respuesta del agente {domain} basada en documentos."
-        if "no" in str(agent_ctx.get("missing_info", "")):
+        if agent_ctx.get("missing_info"):
             answer = "La informacion solicitada no esta disponible en los documentos."
         agent.generate = AsyncMock(return_value=answer)
         container.agent_factory.create.return_value = agent
@@ -163,23 +164,23 @@ async def _run_specialist(agent_ctx, domain):
 
 
 @when("the financial specialist generates an answer")
-async def when_financial_generates(agent_ctx):
-    await _run_specialist(agent_ctx, "financial")
+def when_financial_generates(agent_ctx):
+    asyncio.run(_run_specialist(agent_ctx, "financial"))
 
 
 @when("the legal specialist generates an answer")
-async def when_legal_generates(agent_ctx):
-    await _run_specialist(agent_ctx, "legal")
+def when_legal_generates(agent_ctx):
+    asyncio.run(_run_specialist(agent_ctx, "legal"))
 
 
 @when("the technical specialist generates an answer")
-async def when_technical_generates(agent_ctx):
-    await _run_specialist(agent_ctx, "technical")
+def when_technical_generates(agent_ctx):
+    asyncio.run(_run_specialist(agent_ctx, "technical"))
 
 
 @when("the general specialist generates an answer")
-async def when_general_generates(agent_ctx):
-    await _run_specialist(agent_ctx, "general")
+def when_general_generates(agent_ctx):
+    asyncio.run(_run_specialist(agent_ctx, "general"))
 
 
 # =============================================================================

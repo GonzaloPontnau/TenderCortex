@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 from pytest_bdd import scenarios, given, when, then, parsers
 
-from httpx import AsyncClient, ASGITransport
+from fastapi.testclient import TestClient
 
 from app.main import app
 
@@ -22,10 +22,9 @@ def api_ctx():
 
 
 @pytest.fixture
-async def test_client():
-    """Async test client for FastAPI."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+def test_client():
+    """Sync test client for FastAPI."""
+    with TestClient(app) as client:
         yield client
 
 
@@ -55,7 +54,7 @@ def given_no_docs(api_ctx):
 
 
 @when(parsers.parse('I POST to "/api/chat" with question "{question}"'))
-async def when_post_chat(api_ctx, test_client, question):
+def when_post_chat(api_ctx, test_client, question):
     has_docs = api_ctx.get("has_documents", True)
 
     with patch("app.api.routes.chat.rfp_app") as mock_graph:
@@ -78,21 +77,21 @@ async def when_post_chat(api_ctx, test_client, question):
             "no_documents": not has_docs,
         })
 
-        response = await test_client.post("/api/chat", json={"question": question})
+        response = test_client.post("/api/chat", json={"question": question})
 
     api_ctx["response"] = response
 
 
 @when('I POST to "/api/chat" with question ""')
-async def when_post_empty_question(api_ctx, test_client):
-    response = await test_client.post("/api/chat", json={"question": ""})
+def when_post_empty_question(api_ctx, test_client):
+    response = test_client.post("/api/chat", json={"question": ""})
     api_ctx["response"] = response
 
 
 @when('I POST to "/api/chat" with a 2001-character question')
-async def when_post_long_question(api_ctx, test_client):
+def when_post_long_question(api_ctx, test_client):
     question = "x" * 2001
-    response = await test_client.post("/api/chat", json={"question": question})
+    response = test_client.post("/api/chat", json={"question": question})
     api_ctx["response"] = response
 
 
@@ -102,14 +101,14 @@ async def when_post_long_question(api_ctx, test_client):
 
 
 @when('I POST a PDF file to "/api/ingest"')
-async def when_post_pdf(api_ctx, test_client):
+def when_post_pdf(api_ctx, test_client):
     with patch("app.api.routes.documents.get_rag_service") as mock_rag_fn:
         rag = AsyncMock()
         rag.ingest_document = AsyncMock(return_value=42)
         mock_rag_fn.return_value = rag
 
         pdf_content = b"%PDF-1.4 fake content"
-        response = await test_client.post(
+        response = test_client.post(
             "/api/ingest",
             files={"file": ("test.pdf", pdf_content, "application/pdf")},
         )
@@ -118,8 +117,8 @@ async def when_post_pdf(api_ctx, test_client):
 
 
 @when('I POST a non-PDF file to "/api/ingest"')
-async def when_post_non_pdf(api_ctx, test_client):
-    response = await test_client.post(
+def when_post_non_pdf(api_ctx, test_client):
+    response = test_client.post(
         "/api/ingest",
         files={"file": ("test.txt", b"plain text", "text/plain")},
     )
@@ -127,25 +126,25 @@ async def when_post_non_pdf(api_ctx, test_client):
 
 
 @when('I DELETE "/api/index"')
-async def when_delete_index(api_ctx, test_client):
+def when_delete_index(api_ctx, test_client):
     with patch("app.api.routes.documents.get_rag_service") as mock_rag_fn:
         rag = AsyncMock()
         rag.clear_index = AsyncMock(return_value=True)
         mock_rag_fn.return_value = rag
 
-        response = await test_client.delete("/api/index")
+        response = test_client.delete("/api/index")
 
     api_ctx["response"] = response
 
 
 @when('I GET "/api/index/stats"')
-async def when_get_stats(api_ctx, test_client):
+def when_get_stats(api_ctx, test_client):
     with patch("app.api.routes.documents.get_rag_service") as mock_rag_fn:
         rag = AsyncMock()
         rag.get_stats = AsyncMock(return_value={"total_documents": 5, "total_chunks": 42})
         mock_rag_fn.return_value = rag
 
-        response = await test_client.get("/api/index/stats")
+        response = test_client.get("/api/index/stats")
 
     api_ctx["response"] = response
 

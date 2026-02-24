@@ -4,6 +4,7 @@ Covers: rfp_pipeline.feature, retrieve_node.feature, grading_node.feature,
         routing.feature, risk_sentinel.feature, refinement.feature
 """
 
+import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -167,7 +168,7 @@ def given_domain_is(pipeline_ctx, domain):
 
 
 @when("the pipeline processes the query")
-async def when_pipeline_processes(pipeline_ctx, mock_llm, sample_context):
+def when_pipeline_processes(pipeline_ctx, mock_llm, sample_context):
     """Simula ejecucion E2E: retrieve -> grade+route -> specialist -> audit/refine."""
     state = pipeline_ctx["state"]
     docs = pipeline_ctx.get("docs", sample_context)
@@ -179,7 +180,7 @@ async def when_pipeline_processes(pipeline_ctx, mock_llm, sample_context):
         mock_rag_fn.return_value = rag_mock
 
         from app.agents.nodes.retrieve import retrieve_node
-        result = await retrieve_node(state)
+        result = asyncio.run(retrieve_node(state))
         state.update(result)
 
     if state.get("no_documents"):
@@ -199,7 +200,7 @@ async def when_pipeline_processes(pipeline_ctx, mock_llm, sample_context):
         mock_llm_fn.return_value = llm
 
         from app.agents.nodes.grader import grade_and_route_node
-        result = await grade_and_route_node(state)
+        result = asyncio.run(grade_and_route_node(state))
         state.update(result)
 
     with patch("app.agents.nodes.specialist.get_container") as mock_container_fn:
@@ -213,7 +214,7 @@ async def when_pipeline_processes(pipeline_ctx, mock_llm, sample_context):
         mock_container_fn.return_value = container
 
         from app.agents.nodes.specialist import specialist_node
-        result = await specialist_node(state)
+        result = asyncio.run(specialist_node(state))
         state.update(result)
 
     if state.get("domain") == "quantitative":
@@ -249,7 +250,7 @@ async def when_pipeline_processes(pipeline_ctx, mock_llm, sample_context):
     pipeline_ctx["result"] = result
 
 @when("the retrieve node executes")
-async def when_retrieve_executes(pipeline_ctx, sample_context):
+def when_retrieve_executes(pipeline_ctx, sample_context):
     state = pipeline_ctx["state"]
     docs = pipeline_ctx.get("docs", [])
 
@@ -264,7 +265,7 @@ async def when_retrieve_executes(pipeline_ctx, sample_context):
         mock_rag_fn.return_value = rag_mock
 
         from app.agents.nodes.retrieve import retrieve_node
-        result = await retrieve_node(state)
+        result = asyncio.run(retrieve_node(state))
 
     state.update(result)
     pipeline_ctx["state"] = state
@@ -272,7 +273,7 @@ async def when_retrieve_executes(pipeline_ctx, sample_context):
 
 
 @when("the router classifies the question")
-async def when_router_classifies(pipeline_ctx, mock_llm):
+def when_router_classifies(pipeline_ctx, mock_llm):
     state = pipeline_ctx["state"]
     domain_override = pipeline_ctx.get("mock_llm_domain")
 
@@ -284,7 +285,7 @@ async def when_router_classifies(pipeline_ctx, mock_llm):
         mock_llm_fn.return_value = llm
 
         from app.agents.router import route_question
-        domain = await route_question(state["question"])
+        domain = asyncio.run(route_question(state["question"]))
 
     state["domain"] = domain
     pipeline_ctx["state"] = state
@@ -292,7 +293,7 @@ async def when_router_classifies(pipeline_ctx, mock_llm):
 
 
 @when("the LLM returns an invalid domain")
-async def when_invalid_domain(pipeline_ctx, mock_llm):
+def when_invalid_domain(pipeline_ctx, mock_llm):
     with patch("app.agents.router.get_llm") as mock_llm_fn:
         llm = AsyncMock()
         response = MagicMock()
@@ -301,14 +302,14 @@ async def when_invalid_domain(pipeline_ctx, mock_llm):
         mock_llm_fn.return_value = llm
 
         from app.agents.router import route_question
-        domain = await route_question(pipeline_ctx["question"])
+        domain = asyncio.run(route_question(pipeline_ctx["question"]))
 
     pipeline_ctx["state"]["domain"] = domain
     pipeline_ctx["domain"] = domain
 
 
 @when(parsers.parse('the compliance status is "{status}"'))
-async def when_compliance_status(pipeline_ctx, status):
+def when_compliance_status(pipeline_ctx, status):
     state = pipeline_ctx["state"]
     risk_map = {
         "approved": ("low", "approved", [], True),
@@ -322,7 +323,7 @@ async def when_compliance_status(pipeline_ctx, status):
     with patch("app.agents.risk_sentinel.risk_audit", new=AsyncMock(return_value=(risk_level, compliance, issues, gate))):
 
         from app.agents.nodes.risk_sentinel_node import risk_sentinel_node
-        result = await risk_sentinel_node(state)
+        result = asyncio.run(risk_sentinel_node(state))
 
     state.update(result)
     pipeline_ctx["state"] = state
@@ -330,12 +331,12 @@ async def when_compliance_status(pipeline_ctx, status):
 
 
 @when("the grading node evaluates documents")
-async def when_grading_evaluates(pipeline_ctx, mock_llm):
+def when_grading_evaluates(pipeline_ctx, mock_llm):
     state = pipeline_ctx["state"]
     rejects_all = pipeline_ctx.get("grader_rejects_all", False)
 
     with patch("app.agents.nodes.grader.get_llm") as mock_llm_fn, \
-         patch("app.agents.nodes.grader.route_question") as mock_router:
+         patch("app.agents.nodes.grader.route_question", new=AsyncMock(return_value="financial")):
         llm = AsyncMock()
         response = MagicMock()
 
@@ -348,10 +349,8 @@ async def when_grading_evaluates(pipeline_ctx, mock_llm):
         response.content = lines
         llm.ainvoke = AsyncMock(return_value=response)
         mock_llm_fn.return_value = llm
-        mock_router.return_value = "financial"
-
         from app.agents.nodes.grader import grade_and_route_node
-        result = await grade_and_route_node(state)
+        result = asyncio.run(grade_and_route_node(state))
 
     state.update(result)
     pipeline_ctx["state"] = state
@@ -359,7 +358,7 @@ async def when_grading_evaluates(pipeline_ctx, mock_llm):
 
 
 @when("the refine node processes the answer")
-async def when_refine_processes(pipeline_ctx):
+def when_refine_processes(pipeline_ctx):
     state = pipeline_ctx["state"]
 
     with patch("app.agents.nodes.refine.get_llm") as mock_llm_fn:
@@ -370,7 +369,7 @@ async def when_refine_processes(pipeline_ctx):
         mock_llm_fn.return_value = llm
 
         from app.agents.nodes.refine import refine_node
-        result = await refine_node(state)
+        result = asyncio.run(refine_node(state))
 
     state.update(result)
     pipeline_ctx["state"] = state
