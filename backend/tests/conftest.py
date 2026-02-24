@@ -201,3 +201,9 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "integration: marks tests as integration tests"
     )
+    config.addinivalue_line(
+        "markers", "bdd: marks tests as BDD behavior specs"
+    )
+    config.addinivalue_line(
+        "markers", "spec: marks tests as specification-driven tests"
+    )

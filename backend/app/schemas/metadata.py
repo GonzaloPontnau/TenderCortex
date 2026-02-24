@@ -10,6 +10,19 @@ class QuantAnalysis(BaseModel):
     insights: str = Field(description="Analisis textual de los datos")
     data_quality: str = Field(description="Estado de calidad de datos: clean/sanitized/incomplete")
 
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "chart_base64": "iVBORw0KGgoAAAANSUhEUg...",
+                    "chart_type": "bar",
+                    "insights": "El presupuesto se distribuye en 3 partidas principales.",
+                    "data_quality": "clean",
+                }
+            ]
+        }
+    }
+
 
 class RiskAssessment(BaseModel):
     """Output del subagente Risk Sentinel - Auditor de Compliance."""
@@ -17,6 +30,19 @@ class RiskAssessment(BaseModel):
     compliance_status: Literal["approved", "pending", "rejected"] = Field(description="Estado de compliance")
     issues: list[str] = Field(default_factory=list, description="Lista de problemas detectados")
     gate_passed: bool = Field(description="Si paso el gate de revision actual")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "risk_level": "low",
+                    "compliance_status": "approved",
+                    "issues": [],
+                    "gate_passed": True,
+                }
+            ]
+        }
+    }
 
 
 class AgentMetadata(BaseModel):
