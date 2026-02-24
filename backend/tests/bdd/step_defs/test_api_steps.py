@@ -8,6 +8,7 @@ from pytest_bdd import scenarios, given, when, then, parsers
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.agents.state import NO_DOCUMENTS_MESSAGE
 
 
 # ── Load API feature files ──────────────────────────────────────────
@@ -24,6 +25,8 @@ def api_ctx():
 @pytest.fixture
 def test_client():
     """Sync test client for FastAPI."""
+    from app.api.routes.chat import invalidate_cache
+    invalidate_cache()
     with TestClient(app) as client:
         yield client
 
@@ -59,8 +62,7 @@ def when_post_chat(api_ctx, test_client, question):
 
     with patch("app.api.routes.chat.rfp_app") as mock_graph:
         mock_graph.ainvoke = AsyncMock(return_value={
-            "answer": "El presupuesto es USD 5M." if has_docs else
-                      "No hay documentos cargados en el sistema.\n\nPara poder responder",
+            "answer": "El presupuesto es USD 5M." if has_docs else NO_DOCUMENTS_MESSAGE,
             "context": [],
             "filtered_context": [],
             "domain": "financial" if has_docs else "none",

@@ -42,6 +42,8 @@ def pipeline_ctx():
 def _infer_domain_from_question(question: str) -> str:
     """Clasificador heuristico para escenarios BDD sin dependencia del LLM."""
     q = question.lower()
+    if any(k in q for k in ("compara", "grafico", "porcentaje", "tabla", "partida")):
+        return "quantitative"
     if any(k in q for k in ("presupuesto", "monto", "pago", "garantia")):
         return "financial"
     if any(k in q for k in ("clausula", "contrato", "jurisdic")):
@@ -52,8 +54,6 @@ def _infer_domain_from_question(question: str) -> str:
         return "timeline"
     if any(k in q for k in ("requisito", "experiencia", "equipo", "personal")):
         return "requirements"
-    if any(k in q for k in ("compara", "grafico", "porcentaje", "tabla", "partida")):
-        return "quantitative"
     return "general"
 
 # =============================================================================
@@ -79,7 +79,11 @@ def given_vector_store_error(pipeline_ctx):
 @given(parsers.parse('a user asks "{question}"'))
 def given_user_asks(pipeline_ctx, question):
     pipeline_ctx["question"] = question
-    pipeline_ctx["state"] = create_initial_state(question)
+    existing_state = pipeline_ctx.get("state")
+    if existing_state is not None:
+        existing_state["question"] = question
+    else:
+        pipeline_ctx["state"] = create_initial_state(question)
 
 
 @given("a user asks an ambiguous question")
