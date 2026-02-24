@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import type { ChatResponse, IngestResponse, UploadProgress } from "../types";
+import type { ChatResponse, ChatStatusEvent, IngestResponse, UploadProgress } from "../types";
 
 // For production: VITE_API_URL should be set to the backend URL (e.g., https://your-backend.onrender.com)
 // For local dev: Falls back to empty string, using Vite's proxy configuration
@@ -12,7 +12,7 @@ interface UseRFPReturn {
   uploadProgress: UploadProgress | null;
   uploadDocument: (file: File) => Promise<IngestResponse | null>;
   uploadDocumentStream: (file: File) => Promise<{ chunks_processed: number } | null>;
-  askQuestion: (question: string) => Promise<ChatResponse | null>;
+  askQuestion: (question: string, onStatus?: (status: ChatStatusEvent) => void) => Promise<ChatResponse | null>;
   clearError: () => void;
 }
 
@@ -133,12 +133,82 @@ export function useRFP(): UseRFPReturn {
     }
   }, []);
 
-  const askQuestion = useCallback(async (question: string): Promise<ChatResponse | null> => {
-    return apiCall<ChatResponse>("/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question }),
-    }, "Error al procesar pregunta");
+  const askQuestion = useCallback(async (
+    question: string,
+    onStatus?: (status: ChatStatusEvent) => void
+  ): Promise<ChatResponse | null> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_URL}/chat/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+
+      // Fallback to classic endpoint if streaming is not available
+      if (response.status === 404) {
+        return await apiCall<ChatResponse>("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question }),
+        }, "Error al procesar pregunta");
+      }
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail || "Error al procesar pregunta");
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("Stream no disponible");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let finalResult: ChatResponse | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split("\n\n");
+        buffer = events.pop() || "";
+
+        for (const rawEvent of events) {
+          const lines = rawEvent.split("\n");
+          let eventType = "message";
+          const dataLines: string[] = [];
+
+          for (const line of lines) {
+            if (line.startsWith("event: ")) {
+              eventType = line.slice(7).trim();
+            } else if (line.startsWith("data: ")) {
+              dataLines.push(line.slice(6));
+            }
+          }
+
+          if (dataLines.length === 0) continue;
+          const payload = JSON.parse(dataLines.join("\n"));
+
+          if (eventType === "status") {
+            onStatus?.(payload as ChatStatusEvent);
+          } else if (eventType === "result") {
+            finalResult = payload as ChatResponse;
+          } else if (eventType === "error") {
+            throw new Error(payload.detail || "Error al procesar pregunta");
+          }
+        }
+      }
+
+      return finalResult;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error desconocido");
+      return null;
+    } finally {
+      setLoading(false);
+    }
   }, [apiCall]);
 
   const clearError = useCallback(() => setError(null), []);

@@ -64,3 +64,8 @@ export interface ChatResponse {
   sources: string[];
   agent_metadata: AgentMetadata;
 }
+
+export interface ChatStatusEvent {
+  step: string;
+  message: string;
+}

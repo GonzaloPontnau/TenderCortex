@@ -21,6 +21,8 @@ export default function App() {
   const { loading, error, uploadProgress, uploadDocumentStream, askQuestion, clearError } = useRFP();
   const [messages, setMessages] = useState<Message[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [thinkingMessages, setThinkingMessages] = useState<string[]>([]);
+  const [isAnswering, setIsAnswering] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -47,6 +49,8 @@ export default function App() {
   };
 
   const handleSend = async (question: string) => {
+    setThinkingMessages([]);
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -62,19 +66,31 @@ export default function App() {
         content: NO_DOCUMENTS_MESSAGE,
       };
       setMessages((prev) => [...prev, noDocsMessage]);
+      setThinkingMessages([]);
       return;
     }
 
-    const response = await askQuestion(question);
-    if (response) {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: response.answer,
-        sources: response.sources,
-        agentMetadata: response.agent_metadata,
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
+    setIsAnswering(true);
+    try {
+      const response = await askQuestion(question, (status) => {
+        setThinkingMessages((prev) => {
+          const next = [...prev, status.message];
+          return next.slice(-3);
+        });
+      });
+      if (response) {
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: response.answer,
+          sources: response.sources,
+          agentMetadata: response.agent_metadata,
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+      }
+    } finally {
+      setIsAnswering(false);
+      setThinkingMessages([]);
     }
   };
 
@@ -123,7 +139,7 @@ export default function App() {
                     agentMetadata={msg.agentMetadata}
                   />
                 ))}
-                {loading && (
+                {loading && isAnswering && (
                   <div className="flex gap-4">
                     <div className="relative flex-shrink-0">
                       <div className="absolute inset-0 bg-orange-500/20 rounded-full blur-md animate-pulse" />
@@ -134,10 +150,16 @@ export default function App() {
                       />
                     </div>
                     <div className="bg-gradient-to-br from-slate-800/80 to-slate-800/60 border border-slate-700/30 rounded-3xl rounded-tl-lg px-5 py-4 shadow-lg">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                        <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                        <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                      <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
+                        <span className="inline-block w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                        <span>Razonando</span>
+                      </div>
+                      <div className="space-y-1">
+                        {(thinkingMessages.length > 0 ? thinkingMessages : ["Analizando tu consulta..."]).map((item, idx) => (
+                          <p key={`${item}-${idx}`} className="text-xs text-slate-300 leading-relaxed">
+                            {item}
+                          </p>
+                        ))}
                       </div>
                     </div>
                   </div>
