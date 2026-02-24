@@ -1,5 +1,6 @@
 ---
 name: knowledge-graph-builder
+version: "1.0.0"
 description: |
   Utilice esta habilidad para CONSTRUIR grafos de dependencias contractuales.
   Mapea entidades y relaciones lógicas entre cláusulas, hitos y riesgos.
@@ -245,3 +246,18 @@ flowchart TD
     G --> H
     H --> I[Return GraphOutput]
 ```
+
+## Invariants
+- Graph is always a directed graph (DiGraph)
+- Cycle detection runs after every edge addition
+- Mermaid output is always valid Mermaid syntax
+
+## Error Cases
+| Error Condition | Behavior | Recovery |
+|-----------------|----------|----------|
+| LLM fails to extract triplets | Log warning | Return partial graph |
+| Cycle detected in graph | Flag in output | Include cycle path in metadata |
+| networkx not available | Raise ImportError | Install dependency |
+
+## Test Scenarios
+See: `tests/bdd/features/skills/` (planned)

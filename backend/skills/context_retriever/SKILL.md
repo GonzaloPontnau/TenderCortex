@@ -1,5 +1,6 @@
 ---
 name: context-retriever
+version: "1.0.0"
 description: |
   Utilice esta habilidad para recuperar fragmentos relevantes de documentos RFP desde la base vectorial.
   Soporta búsqueda por similitud semántica y MMR (Maximal Marginal Relevance) para diversidad.
@@ -137,3 +138,18 @@ flowchart TD
     H -->|Yes| J[Format ContextResult]
     J --> K[Return RetrievalOutput]
 ```
+
+## Invariants
+- Results are always ordered by relevance score (descending)
+- k parameter is always >= 1 and <= 50
+- Metadata filters are always validated before query execution
+
+## Error Cases
+| Error Condition | Behavior | Recovery |
+|-----------------|----------|----------|
+| Vector store not initialized | Raise VectorStoreError | Caller handles initialization |
+| Invalid metadata filter | Validation error | Return empty results |
+| Embedding API failure | Propagate exception | Retry at caller level |
+
+## Test Scenarios
+See: `tests/bdd/features/pipeline/retrieve_node.feature`

@@ -1,5 +1,6 @@
 ---
 name: risk-score-calculator
+version: "1.0.0"
 description: |
   Utilice esta habilidad para CALCULAR el score de viabilidad de una licitación.
   Convierte hallazgos cualitativos de riesgo en una métrica cuantitativa (0-100).
@@ -199,3 +200,18 @@ flowchart TD
     J --> L
     L --> K
 ```
+
+## Invariants
+- Score is always between 0 and 100 (inclusive)
+- Recommendation is always one of: GO, NO_GO, REVIEW
+- Algorithm is deterministic (same input → same output)
+
+## Error Cases
+| Error Condition | Behavior | Recovery |
+|-----------------|----------|----------|
+| Missing required risk factors | Validation error | Caller provides all factors |
+| Invalid weight configuration | Use default weights | Log warning |
+| Score calculation overflow | Cap at 100 | Log warning |
+
+## Test Scenarios
+See: `tests/bdd/features/skills/` (planned)

@@ -1,5 +1,6 @@
 ---
 name: financial-table-parser
+version: "1.0.0"
 description: |
   Utilice esta habilidad EXCLUSIVAMENTE para extraer tablas financieras de documentos PDF de licitación.
   Extrae datos numéricos limpios (floats) de precios, cantidades y totales.
@@ -172,3 +173,18 @@ flowchart TD
     L --> M[Calculate Total]
     M --> N[Return FinancialTableOutput]
 ```
+
+## Invariants
+- All monetary values are extracted as float (never string)
+- Currency is always normalized to ISO 4217 code
+- Table headers are always preserved in output
+
+## Error Cases
+| Error Condition | Behavior | Recovery |
+|-----------------|----------|----------|
+| No tables detected in PDF | Return empty list | Non-fatal |
+| Malformed table structure | Skip table, log warning | Continue with other tables |
+| Non-numeric financial values | Mark as unparseable | Include raw text in output |
+
+## Test Scenarios
+See: `tests/bdd/features/skills/` (planned)

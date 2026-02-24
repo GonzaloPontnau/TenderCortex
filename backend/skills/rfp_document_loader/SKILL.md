@@ -1,5 +1,6 @@
 ---
 name: rfp-document-loader
+version: "1.0.0"
 description: |
   Utilice esta habilidad EXCLUSIVAMENTE para cargar, extraer y fragmentar documentos PDF de licitaciones (RFPs).
   Soporta PDFs con texto nativo y PDFs escaneados (OCR automático).
@@ -110,3 +111,19 @@ flowchart TD
     F --> G[Semantic Chunking]
     G --> H[DocumentChunk List]
 ```
+
+## Invariants
+- Page numbers are always 1-indexed
+- Chunks always have source metadata
+- Table content is always formatted as Markdown
+
+## Error Cases
+| Error Condition | Behavior | Recovery |
+|-----------------|----------|----------|
+| Encrypted PDF | Raise EncryptedPDFError | Caller handles |
+| PDF > 500 pages | Timeout after limit | Return partial results |
+| OCR failure (Tesseract missing) | Raise RuntimeError | Install Tesseract |
+| Empty PDF (no text) | Return empty list | Non-fatal |
+
+## Test Scenarios
+See: `tests/bdd/features/skills/rfp_document_loader.feature`

@@ -1,5 +1,6 @@
 ---
 name: tech-stack-mapper
+version: "1.0.0"
 description: |
   Utilice esta habilidad para EXTRAER y NORMALIZAR tecnologías mencionadas en pliegos.
   Mapea variaciones a nombres canónicos y categoriza (Lang, Framework, DB, Infra, Cert).
@@ -257,3 +258,18 @@ flowchart TD
     L --> M
     M --> N[Build TechStackOutput]
 ```
+
+## Invariants
+- Technology names are always normalized to canonical form
+- Category is always one of: Lang, Framework, DB, Infra, Cert
+- Requirement level is always one of: MANDATORY, NICE_TO_HAVE, FORBIDDEN
+
+## Error Cases
+| Error Condition | Behavior | Recovery |
+|-----------------|----------|----------|
+| Unknown technology | Return as-is without mapping | Flag as unmapped |
+| Empty input text | Return empty list | Non-fatal |
+| Ambiguous technology name | Return all possible matches | Include confidence scores |
+
+## Test Scenarios
+See: `tests/bdd/features/skills/` (planned)

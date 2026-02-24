@@ -1,5 +1,6 @@
 ---
 name: compliance-audit-validator
+version: "1.0.0"
 description: |
   Utilice esta habilidad para AUDITAR requisitos del pliego contra el perfil de la empresa.
   Emite veredictos binarios (COMPLIANT/NON_COMPLIANT/PARTIAL/MISSING_INFO) con evidencia.
@@ -162,14 +163,29 @@ flowchart TD
 El sistema construye dinámicamente un prompt que fuerza al LLM a ser riguroso:
 
 ```
-Eres un AUDITOR DE LICITACIONES extremadamente estricto. Tu trabajo es 
+Eres un AUDITOR DE LICITACIONES extremadamente estricto. Tu trabajo es
 determinar si una empresa CUMPLE o NO CUMPLE un requisito específico.
 
 REGLAS INAMOVIBLES:
-1. Si la información NO está EXPLÍCITAMENTE en el contexto de la empresa, 
+1. Si la información NO está EXPLÍCITAMENTE en el contexto de la empresa,
    asume que NO lo tienen.
 2. Sé pesimista: es mejor un falso negativo que un falso positivo.
 3. Los verbos "DEBE", "DEBERÁ", "SHALL", "MUST" indican requisitos OBLIGATORIOS.
 4. Los verbos "se valorará", "deseable", "preferible" indican requisitos OPCIONALES.
 5. Cita EXACTAMENTE el fragmento del contexto que respalda tu veredicto.
 ```
+
+## Invariants
+- If `company_context` is empty, result is always `MISSING_INFO`
+- `confidence_score` is always between 0.0 and 1.0
+- Mandatory requirement keywords (`DEBE`, `SHALL`, `MUST`) always map to `MANDATORY` severity
+
+## Error Cases
+| Error Condition | Behavior | Recovery |
+|-----------------|----------|----------|
+| Empty requirement_text | Validation error | Caller must provide non-empty text |
+| LLM timeout | Retry up to 3 times | Return MISSING_INFO on exhaustion |
+| Unparseable LLM response | Log warning | Return MISSING_INFO with low confidence |
+
+## Test Scenarios
+See: `tests/bdd/features/skills/compliance_audit.feature`

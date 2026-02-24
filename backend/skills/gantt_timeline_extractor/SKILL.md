@@ -1,5 +1,6 @@
 ---
 name: gantt-timeline-extractor
+version: "1.0.0"
 description: |
   Utilice esta habilidad para EXTRAER y NORMALIZAR fechas y cronogramas de pliegos.
   Convierte fechas absolutas, relativas y duraciones a formato ISO 8601.
@@ -203,3 +204,18 @@ flowchart TD
     K --> L[Sort Chronologically]
     L --> M[Return TimelineOutput]
 ```
+
+## Invariants
+- All dates are output in ISO 8601 format
+- Relative dates are resolved against a reference date
+- Deadline detection is keyword-based, not date-range based
+
+## Error Cases
+| Error Condition | Behavior | Recovery |
+|-----------------|----------|----------|
+| Unparseable date format | Log warning, skip | Continue with other dates |
+| Missing reference date for relative dates | Use current date | Log assumption |
+| dateparser not installed | Raise ImportError | Install dependency |
+
+## Test Scenarios
+See: `tests/bdd/features/skills/` (planned)
