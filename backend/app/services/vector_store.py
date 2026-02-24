@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 import time
 import uuid
 from collections.abc import AsyncGenerator
@@ -25,6 +26,16 @@ COLLECTION_NAME = "rfp_demo_collection"
 
 def _ensure_initialized(method: Callable[..., T]) -> Callable[..., T]:
     """Decorador que inicializa el vector store antes de ejecutar el metodo."""
+    if inspect.isasyncgenfunction(method):
+        @wraps(method)
+        async def asyncgen_wrapper(self: "RAGService", *args, **kwargs):
+            if self._vector_store is None:
+                await self._initialize()
+            async for item in method(self, *args, **kwargs):
+                yield item
+
+        return asyncgen_wrapper
+
     @wraps(method)
     async def wrapper(self: "RAGService", *args, **kwargs) -> T:
         if self._vector_store is None:
