@@ -47,6 +47,46 @@
         }
       }
     },
+    "/api/ingest/stream": {
+      "post": {
+        "tags": [
+          "TenderCortex"
+        ],
+        "summary": "Ingest Document Stream",
+        "description": "Procesa un PDF con progreso en tiempo real via Server-Sent Events.\n\nEmite eventos SSE con formato:\n    data: {\"phase\": \"parsing\", \"message\": \"Extrayendo texto del PDF...\"}\n    data: {\"phase\": \"embedding\", \"message\": \"...\", \"batch_current\": 1, \"batch_total\": 3}\n    data: {\"phase\": \"done\", \"message\": \"...\", \"chunks\": 42, \"elapsed_seconds\": 8.3}",
+        "operationId": "ingest_document_stream_api_ingest_stream_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_ingest_document_stream_api_ingest_stream_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/index": {
       "delete": {
         "tags": [
@@ -301,6 +341,20 @@
           "file"
         ],
         "title": "Body_ingest_document_api_ingest_post"
+      },
+      "Body_ingest_document_stream_api_ingest_stream_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_ingest_document_stream_api_ingest_stream_post"
       },
       "HTTPValidationError": {
         "properties": {

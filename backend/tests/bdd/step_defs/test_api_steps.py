@@ -106,7 +106,7 @@ async def when_post_long_question(api_ctx, test_client):
 async def when_post_pdf(api_ctx, test_client):
     with patch("app.api.routes.documents.get_rag_service") as mock_rag_fn:
         rag = AsyncMock()
-        rag.ingest_file = AsyncMock(return_value=42)
+        rag.ingest_document = AsyncMock(return_value=42)
         mock_rag_fn.return_value = rag
 
         pdf_content = b"%PDF-1.4 fake content"
@@ -131,7 +131,7 @@ async def when_post_non_pdf(api_ctx, test_client):
 async def when_delete_index(api_ctx, test_client):
     with patch("app.api.routes.documents.get_rag_service") as mock_rag_fn:
         rag = AsyncMock()
-        rag.clear = AsyncMock()
+        rag.clear_index = AsyncMock(return_value=True)
         mock_rag_fn.return_value = rag
 
         response = await test_client.delete("/api/index")

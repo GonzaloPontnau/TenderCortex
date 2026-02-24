@@ -64,6 +64,24 @@ export function useRFP(): UseRFPReturn {
         body: formData,
       });
 
+      // Fallback to classic endpoint if streaming is not available (404)
+      if (response.status === 404) {
+        setUploadProgress({ phase: "parsing", message: "Procesando documento..." });
+        const fallbackForm = new FormData();
+        fallbackForm.append("file", file);
+        const classicResponse = await fetch(`${API_URL}/ingest`, {
+          method: "POST",
+          body: fallbackForm,
+        });
+        if (!classicResponse.ok) {
+          const err = await classicResponse.json();
+          throw new Error(err.detail || "Error al subir documento");
+        }
+        const result = await classicResponse.json();
+        setUploadProgress({ phase: "done", message: "Documento procesado", chunks: result.chunks_processed });
+        return { chunks_processed: result.chunks_processed };
+      }
+
       if (!response.ok) {
         const err = await response.json();
         throw new Error(err.detail || "Error al subir documento");
