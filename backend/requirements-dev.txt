@@ -3,6 +3,7 @@
 
 # BDD testing
 pytest-bdd>=7.0.0
+pytest-asyncio>=0.23.0
 
 # Coverage reporting
 pytest-cov>=4.1.0

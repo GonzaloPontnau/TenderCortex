@@ -9,8 +9,7 @@ import sys
 from pathlib import Path
 
 try:
-    from openapi_spec_validator import validate
-    from openapi_spec_validator.versions import OPENAPIV31
+    from openapi_spec_validator import validate_spec
 except ImportError:
     print("ERROR: openapi-spec-validator not installed.")
     print("Install with: pip install openapi-spec-validator>=0.7.0")
@@ -28,8 +27,8 @@ def main() -> None:
     spec = json.loads(spec_path.read_text())
 
     try:
-        validate(spec, cls=OPENAPIV31)
-        print(f"OK: {spec_path} is a valid OpenAPI 3.1 spec.")
+        validate_spec(spec)
+        print(f"OK: {spec_path} is a valid OpenAPI spec.")
     except Exception as exc:
         print(f"VALIDATION FAILED: {exc}")
         sys.exit(1)

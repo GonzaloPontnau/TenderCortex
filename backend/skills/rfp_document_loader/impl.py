@@ -14,6 +14,7 @@ Author: TenderCortex Team
 import logging
 import os
 import re
+import sys
 import importlib.util
 from collections import Counter
 from pathlib import Path
@@ -46,14 +47,23 @@ try:
 except ImportError:
     # Fallback for standalone testing
     definition_path = Path(__file__).with_name("definition.py")
-    spec = importlib.util.spec_from_file_location(
-        "rfp_document_loader_definition_fallback",
-        definition_path,
-    )
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Could not load definition module from {definition_path}")
-    definition_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(definition_module)
+
+    definition_module = None
+    for module in sys.modules.values():
+        module_file = getattr(module, "__file__", None)
+        if module_file and Path(module_file).resolve() == definition_path.resolve():
+            definition_module = module
+            break
+
+    if definition_module is None:
+        spec = importlib.util.spec_from_file_location(
+            "rfp_document_loader_definition_fallback",
+            definition_path,
+        )
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Could not load definition module from {definition_path}")
+        definition_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(definition_module)
 
     DocumentChunk = definition_module.DocumentChunk
     EncryptedPDFError = definition_module.EncryptedPDFError
