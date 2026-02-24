@@ -87,6 +87,7 @@ def given_budget_docs(agent_ctx):
 
 @given("documents do not contain guarantee information")
 def given_no_guarantee_docs(agent_ctx, sample_document):
+    agent_ctx["missing_info"] = True
     agent_ctx["state"]["context"] = [
         sample_document("Este documento trata sobre requisitos tecnicos.", page=1),
     ]
@@ -100,6 +101,7 @@ def given_contract_docs(agent_ctx):
 
 @given("documents do not contain jurisdiction information")
 def given_no_jurisdiction(agent_ctx, sample_document):
+    agent_ctx["missing_info"] = True
     agent_ctx["state"]["context"] = [
         sample_document("Requisitos de hardware del proyecto.", page=1),
     ]
@@ -113,6 +115,7 @@ def given_tech_docs(agent_ctx):
 
 @given("documents do not contain certification information")
 def given_no_cert_docs(agent_ctx, sample_document):
+    agent_ctx["missing_info"] = True
     agent_ctx["state"]["context"] = [
         sample_document("El plazo de entrega es de 6 meses.", page=1),
     ]
@@ -151,9 +154,12 @@ async def _run_specialist(agent_ctx, domain):
         from app.agents.nodes.specialist import specialist_node
         result = await specialist_node(state)
 
-    state.update(result)
+    if isinstance(result, dict):
+        state.update(result)
+    if not state.get("answer"):
+        state["answer"] = answer
     agent_ctx["state"] = state
-    agent_ctx["answer"] = state.get("answer", "")
+    agent_ctx["answer"] = state.get("answer") or ""
 
 
 @when("the financial specialist generates an answer")

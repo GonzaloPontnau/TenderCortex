@@ -58,13 +58,7 @@ def given_no_docs(api_ctx):
 async def when_post_chat(api_ctx, test_client, question):
     has_docs = api_ctx.get("has_documents", True)
 
-    with patch("app.api.routes.chat.get_rag_service") as mock_rag_fn, \
-         patch("app.api.routes.chat.compile_graph") as mock_graph_fn:
-        rag = AsyncMock()
-        rag.get_document_count = AsyncMock(return_value=5 if has_docs else 0)
-        mock_rag_fn.return_value = rag
-
-        mock_graph = AsyncMock()
+    with patch("app.api.routes.chat.rfp_app") as mock_graph:
         mock_graph.ainvoke = AsyncMock(return_value={
             "answer": "El presupuesto es USD 5M." if has_docs else
                       "No hay documentos cargados en el sistema.\n\nPara poder responder",
@@ -83,10 +77,15 @@ async def when_post_chat(api_ctx, test_client, question):
             "quant_data_quality": None,
             "no_documents": not has_docs,
         })
-        mock_graph_fn.return_value = mock_graph
 
         response = await test_client.post("/api/chat", json={"question": question})
 
+    api_ctx["response"] = response
+
+
+@when('I POST to "/api/chat" with question ""')
+async def when_post_empty_question(api_ctx, test_client):
+    response = await test_client.post("/api/chat", json={"question": ""})
     api_ctx["response"] = response
 
 

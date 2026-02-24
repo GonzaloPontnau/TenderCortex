@@ -14,32 +14,15 @@ Author: TenderCortex Team
 import os
 import pytest
 from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
-# Add skills directory to path for imports
 import sys
 skills_path = Path(__file__).parent.parent.parent / "skills" / "rfp_document_loader"
 sys.path.insert(0, str(skills_path.parent))
 
-# Now we can import using the package structure
-# Note: Python doesn't allow hyphens in module names, so we use importlib
-import importlib.util
+from rfp_document_loader import definition
+from rfp_document_loader.impl import RFPLoader
 
-def load_module(module_name: str, file_path: Path):
-    """Dynamically load a module from file path."""
-    spec = importlib.util.spec_from_file_location(module_name, file_path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
-
-# Load definition module
-definition = load_module(
-    "rfp_document_loader_definition",
-    skills_path / "definition.py"
-)
-
-# Extract classes from the loaded module
 DocumentChunk = definition.DocumentChunk
 EncryptedPDFError = definition.EncryptedPDFError
 InvalidPDFError = definition.InvalidPDFError
@@ -47,13 +30,6 @@ ProcessingStrategy = definition.ProcessingStrategy
 ProcessingTimeoutError = definition.ProcessingTimeoutError
 RFPLoaderInput = definition.RFPLoaderInput
 RFPLoaderOutput = definition.RFPLoaderOutput
-
-# Load implementation module
-impl = load_module(
-    "rfp_document_loader_impl",
-    skills_path / "impl.py"
-)
-RFPLoader = impl.RFPLoader
 
 
 # =============================================================================
@@ -247,10 +223,11 @@ class TestRFPLoader:
     def test_file_not_found(self):
         """Test handling of non-existent files."""
         from rfp_document_loader.impl import RFPLoader
-        
+
         loader = RFPLoader()
+        missing_path = str((Path.cwd() / "this_file_should_not_exist_12345.pdf").resolve())
         with pytest.raises(FileNotFoundError):
-            loader.load("/nonexistent/path/to/file.pdf")
+            loader.load(missing_path)
     
     def test_invalid_pdf(self, mock_invalid_file):
         """Test handling of invalid PDF files."""
