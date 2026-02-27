@@ -1,0 +1,128 @@
+# OpenSpec Configuration — TenderCortex
+# Generated: 2026-02-26
+# Spec-Driven Development (SDD) project configuration
+
+project:
+  name: TenderCortex
+  description: >
+    Multi-agent system for automating public tender (licitacion) analysis.
+    Uses LangGraph as state orchestrator to coordinate document ingestion,
+    RAG, intelligent routing to specialized sub-agents, and quality auditing
+    with iterative refinement.
+  repository: local
+  main_branch: master
+
+# ── Tech Stack ───────────────────────────────────────────────────────
+stack:
+  backend:
+    language: python
+    version: "3.11"
+    framework: fastapi
+    framework_version: ">=0.109.0"
+    runtime: uvicorn
+    orm: none
+    key_libraries:
+      - langchain          # LLM orchestration
+      - langgraph          # State machine / multi-agent graphs
+      - langchain-groq     # Groq LLM provider
+      - langchain-huggingface  # HuggingFace embeddings
+      - qdrant-client      # Vector database (in-memory)
+      - pypdf              # PDF extraction (native)
+      - pdfplumber         # PDF extraction (table-aware)
+      - pytesseract        # OCR fallback
+      - pandas             # Data analysis
+      - numpy              # Numerical computation
+      - matplotlib         # Visualization
+      - networkx           # Graph analysis
+      - pydantic-settings  # Configuration management
+      - httpx              # HTTP client
+
+  frontend:
+    language: typescript
+    version: "~5.9.3"
+    framework: react
+    framework_version: "^19.2.0"
+    bundler: vite
+    bundler_version: "^7.2.4"
+    styling: tailwindcss
+    key_libraries:
+      - react-markdown     # Markdown rendering
+      - remark-gfm         # GitHub-flavored markdown
+
+# ── Architecture ─────────────────────────────────────────────────────
+architecture:
+  pattern: multi-agent-graph
+  description: >
+    LangGraph StateGraph orchestrating 7 specialist sub-agents
+    (legal, technical, financial, timeline, requirements, general, quantitative)
+    with a Risk Sentinel auditor and iterative refinement loop.
+  key_patterns:
+    - factory-pattern (agent_factory.py)
+    - skill-based-architecture (8 product skills)
+    - rag-pipeline (retrieval-augmented generation)
+    - state-machine (LangGraph StateGraph)
+  api_style: rest
+  api_spec: openapi (backend/openapi.json)
+
+# ── Testing ──────────────────────────────────────────────────────────
+testing:
+  backend:
+    framework: pytest
+    config_file: backend/pytest.ini
+    strategies:
+      - unit (tests/unit/)
+      - bdd (tests/bdd/ — pytest-bdd)
+      - integration (tests/integration/)
+    coverage_tool: pytest-cov
+    async_support: pytest-asyncio (auto mode)
+    fuzz_testing: schemathesis (OpenAPI-based)
+    markers:
+      - slow
+      - integration
+      - bdd
+      - spec
+  frontend:
+    linter: eslint (flat config, typescript-eslint + react-hooks + react-refresh)
+
+# ── CI/CD ────────────────────────────────────────────────────────────
+ci:
+  platform: github-actions
+  config_file: .github/workflows/ci.yml
+  triggers:
+    - push to master
+    - pull_request to master
+  jobs:
+    - openapi (export, validate, drift check)
+    - unit-tests
+    - bdd-specs
+    - integration-tests
+    - coverage (depends on unit-tests + bdd-specs)
+    - spec-check (spec consistency)
+    - frontend (lint + build)
+
+# ── Deployment ───────────────────────────────────────────────────────
+deployment:
+  frontend:
+    platform: vercel
+    config_file: frontend/vercel.json
+  backend:
+    platform: render
+    tier: free
+    containerized: true
+    dockerfile: backend/Dockerfile
+
+# ── Conventions ──────────────────────────────────────────────────────
+conventions:
+  commit_style: conventional (feat/fix/docs/refactor/test)
+  branch_strategy: trunk-based (master)
+  code_quality:
+    - pre-commit hooks
+    - openapi-spec-validator
+  skill_pattern: "SKILL.md + definition.py (Pydantic) + impl.py"
+
+# ── SDD Settings ────────────────────────────────────────────────────
+sdd:
+  artifact_store: openspec
+  specs_dir: openspec/specs
+  changes_dir: openspec/changes
+  archive_dir: openspec/changes/archive

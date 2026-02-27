@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import type { ChatResponse, ChatStatusEvent, IngestResponse, UploadProgress } from "../types";
+import type { ChatResponse, ChatStatusEvent, ChecklistItemStatus, ChecklistResponse, IngestResponse, UploadProgress } from "../types";
 
 // For production: VITE_API_URL should be set to the backend URL (e.g., https://your-backend.onrender.com)
 // For local dev: Falls back to empty string, using Vite's proxy configuration
@@ -13,6 +13,8 @@ interface UseRFPReturn {
   uploadDocument: (file: File) => Promise<IngestResponse | null>;
   uploadDocumentStream: (file: File) => Promise<{ chunks_processed: number } | null>;
   askQuestion: (question: string, onStatus?: (status: ChatStatusEvent) => void) => Promise<ChatResponse | null>;
+  generateChecklist: () => Promise<ChecklistResponse | null>;
+  updateChecklistItem: (itemId: string, status: ChecklistItemStatus) => Promise<boolean>;
   clearError: () => void;
 }
 
@@ -211,7 +213,31 @@ export function useRFP(): UseRFPReturn {
     }
   }, [apiCall]);
 
+  const generateChecklist = useCallback(async (): Promise<ChecklistResponse | null> => {
+    return apiCall<ChecklistResponse>(
+      "/checklist/generate",
+      { method: "POST" },
+      "Error al generar checklist"
+    );
+  }, [apiCall]);
+
+  const updateChecklistItem = useCallback(async (
+    itemId: string,
+    status: ChecklistItemStatus
+  ): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_URL}/checklist/items/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const clearError = useCallback(() => setError(null), []);
 
-  return { loading, error, uploadProgress, uploadDocument, uploadDocumentStream, askQuestion, clearError };
+  return { loading, error, uploadProgress, uploadDocument, uploadDocumentStream, askQuestion, generateChecklist, updateChecklistItem, clearError };
 }

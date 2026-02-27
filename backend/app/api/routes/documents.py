@@ -12,6 +12,7 @@ from app.api.routes.chat import invalidate_cache
 from app.core.logging import get_logger
 from app.schemas import IngestResponse
 from app.services import get_rag_service
+from app.services.checklist_service import get_checklist_service
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -107,6 +108,7 @@ async def clear_index() -> dict:
         success = await rag.clear_index()
         if success:
             invalidate_cache()
+            get_checklist_service().clear()
             return {"status": "success", "message": "Indice limpiado exitosamente"}
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error limpiando el indice")
     except Exception as e:

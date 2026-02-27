@@ -1,5 +1,6 @@
 import { useState } from "react";
-import type { Document, UploadProgress } from "../types";
+import type { ChecklistItemStatus, ChecklistResponse, Document, UploadProgress } from "../types";
+import { ChecklistPanel } from "./ChecklistPanel";
 
 const PHASE_CONFIG: Record<string, { label: string; percent: number; color: string }> = {
   parsing:   { label: "Extrayendo texto",    percent: 15,  color: "from-blue-500 to-blue-400" },
@@ -15,10 +16,15 @@ interface SidebarProps {
   onUpload: (file: File) => Promise<{ chunks_processed: number } | null>;
   loading: boolean;
   uploadProgress: UploadProgress | null;
+  checklist: ChecklistResponse | null;
+  onGenerateChecklist: () => void;
+  onUpdateChecklistItem: (itemId: string, status: ChecklistItemStatus) => void;
+  checklistLoading: boolean;
 }
 
-export function Sidebar({ documents, onUpload, loading, uploadProgress }: SidebarProps) {
+export function Sidebar({ documents, onUpload, loading, uploadProgress, checklist, onGenerateChecklist, onUpdateChecklistItem, checklistLoading }: SidebarProps) {
   const [dragOver, setDragOver] = useState(false);
+  const [activeTab, setActiveTab] = useState<"docs" | "checklist">("docs");
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
@@ -97,7 +103,6 @@ export function Sidebar({ documents, onUpload, loading, uploadProgress }: Sideba
           />
           {loading && uploadProgress ? (
             <div className="flex flex-col items-center gap-3">
-              {/* Phase icon */}
               {uploadProgress.phase !== "done" && uploadProgress.phase !== "error" ? (
                 <div className="w-10 h-10 border-2 border-orange-500/50 border-t-orange-500 rounded-full animate-spin" />
               ) : uploadProgress.phase === "done" ? (
@@ -113,21 +118,15 @@ export function Sidebar({ documents, onUpload, loading, uploadProgress }: Sideba
                   </svg>
                 </div>
               )}
-
-              {/* Message */}
               <span className="text-sm text-slate-300 font-medium">
                 {uploadProgress.message}
               </span>
-
-              {/* Progress bar */}
               <div className="w-full bg-slate-800/60 rounded-full h-1.5 overflow-hidden">
                 <div
                   className={`h-full rounded-full bg-gradient-to-r ${phaseInfo?.color || "from-orange-500 to-amber-400"} transition-all duration-500 ease-out`}
                   style={{ width: `${getProgressPercent()}%` }}
                 />
               </div>
-
-              {/* Phase label */}
               <span className="text-[10px] text-slate-500 uppercase tracking-wider">
                 {phaseInfo?.label || uploadProgress.phase}
               </span>
@@ -151,41 +150,79 @@ export function Sidebar({ documents, onUpload, loading, uploadProgress }: Sideba
         </label>
       </div>
 
-      {/* Documents List */}
-      <div className="flex-1 overflow-y-auto px-4">
-        <h3 className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-3 px-2">
-          Documentos ({documents.length})
-        </h3>
-        {documents.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-slate-800/30 flex items-center justify-center">
-              <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+      {/* Tabs */}
+      {documents.length > 0 && (
+        <div className="mx-5 flex rounded-xl bg-slate-800/40 p-0.5 mb-3">
+          <button
+            onClick={() => setActiveTab("docs")}
+            className={`flex-1 text-[11px] font-medium py-1.5 rounded-lg transition-all ${
+              activeTab === "docs"
+                ? "bg-slate-700/60 text-slate-200"
+                : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            Documentos
+          </button>
+          <button
+            onClick={() => setActiveTab("checklist")}
+            className={`flex-1 text-[11px] font-medium py-1.5 rounded-lg transition-all ${
+              activeTab === "checklist"
+                ? "bg-slate-700/60 text-slate-200"
+                : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            Checklist
+          </button>
+        </div>
+      )}
+
+      {/* Tab Content */}
+      {activeTab === "checklist" && documents.length > 0 ? (
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <ChecklistPanel
+            checklist={checklist}
+            onGenerate={onGenerateChecklist}
+            onUpdateItem={onUpdateChecklistItem}
+            loading={checklistLoading}
+            hasDocuments={documents.length > 0}
+          />
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto px-4">
+          <h3 className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-3 px-2">
+            Documentos ({documents.length})
+          </h3>
+          {documents.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-slate-800/30 flex items-center justify-center">
+                <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <p className="text-sm text-slate-600">Sin documentos</p>
             </div>
-            <p className="text-sm text-slate-600">Sin documentos</p>
-          </div>
-        ) : (
-          <ul className="space-y-2">
-            {documents.map((doc, i) => (
-              <li
-                key={i}
-                className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800/40 transition-all duration-200 group cursor-pointer"
-              >
-                <div className="w-10 h-10 bg-gradient-to-br from-slate-800 to-slate-800/50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:from-orange-500/20 group-hover:to-orange-600/10 transition-all duration-200">
-                  <svg className="w-5 h-5 text-slate-400 group-hover:text-orange-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-300 truncate">{doc.name}</p>
-                  <p className="text-xs text-slate-600">{doc.chunks} chunks indexados</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+          ) : (
+            <ul className="space-y-2">
+              {documents.map((doc, i) => (
+                <li
+                  key={i}
+                  className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800/40 transition-all duration-200 group cursor-pointer"
+                >
+                  <div className="w-10 h-10 bg-gradient-to-br from-slate-800 to-slate-800/50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:from-orange-500/20 group-hover:to-orange-600/10 transition-all duration-200">
+                    <svg className="w-5 h-5 text-slate-400 group-hover:text-orange-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-slate-300 truncate">{doc.name}</p>
+                    <p className="text-xs text-slate-600">{doc.chunks} chunks indexados</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
     </aside>
   );

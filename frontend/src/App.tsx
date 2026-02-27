@@ -4,7 +4,19 @@ import { ChatMessage } from "./components/ChatMessage";
 import { PromptSuggestions } from "./components/PromptSuggestions";
 import { Sidebar } from "./components/Sidebar";
 import { useRFP } from "./hooks/useRFP";
-import type { Document, Message } from "./types";
+import type { ChecklistItem, ChecklistItemStatus, ChecklistResponse, ChecklistSummary, Document, Message } from "./types";
+
+function recalcSummary(items: ChecklistItem[]): ChecklistSummary {
+  const by_category: Record<string, number> = {};
+  const by_severity: Record<string, number> = {};
+  const by_status: Record<string, number> = {};
+  for (const item of items) {
+    by_category[item.category] = (by_category[item.category] || 0) + 1;
+    by_severity[item.severity] = (by_severity[item.severity] || 0) + 1;
+    by_status[item.status] = (by_status[item.status] || 0) + 1;
+  }
+  return { total: items.length, by_category, by_severity, by_status };
+}
 
 // Message shown when user tries to ask without uploading documents
 const NO_DOCUMENTS_MESSAGE = `**No hay documentos cargados**
@@ -18,11 +30,13 @@ Para poder responder tu pregunta, por favor:
 Una vez que hayas cargado los documentos de licitación, podré analizar y responder preguntas específicas sobre su contenido.`;
 
 export default function App() {
-  const { loading, error, uploadProgress, uploadDocumentStream, askQuestion, clearError } = useRFP();
+  const { loading, error, uploadProgress, uploadDocumentStream, askQuestion, generateChecklist, updateChecklistItem, clearError } = useRFP();
   const [messages, setMessages] = useState<Message[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [thinkingMessages, setThinkingMessages] = useState<string[]>([]);
   const [isAnswering, setIsAnswering] = useState(false);
+  const [checklist, setChecklist] = useState<ChecklistResponse | null>(null);
+  const [checklistLoading, setChecklistLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -46,6 +60,30 @@ export default function App() {
       ]);
     }
     return result;
+  };
+
+  const handleGenerateChecklist = async () => {
+    setChecklistLoading(true);
+    try {
+      const result = await generateChecklist();
+      if (result) setChecklist(result);
+    } finally {
+      setChecklistLoading(false);
+    }
+  };
+
+  const handleUpdateChecklistItem = (itemId: string, status: ChecklistItemStatus) => {
+    if (!checklist) return;
+    setChecklist({
+      ...checklist,
+      items: checklist.items.map((item) =>
+        item.id === itemId ? { ...item, status } : item
+      ),
+      summary: recalcSummary(checklist.items.map((item) =>
+        item.id === itemId ? { ...item, status } : item
+      )),
+    });
+    updateChecklistItem(itemId, status);
   };
 
   const handleSend = async (question: string) => {
@@ -97,7 +135,16 @@ export default function App() {
   return (
     <div className="h-screen bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900 text-slate-100 flex overflow-hidden">
       {/* Sidebar */}
-      <Sidebar documents={documents} onUpload={handleUpload} loading={loading} uploadProgress={uploadProgress} />
+      <Sidebar
+        documents={documents}
+        onUpload={handleUpload}
+        loading={loading}
+        uploadProgress={uploadProgress}
+        checklist={checklist}
+        onGenerateChecklist={handleGenerateChecklist}
+        onUpdateChecklistItem={handleUpdateChecklistItem}
+        checklistLoading={checklistLoading}
+      />
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">

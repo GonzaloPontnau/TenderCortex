@@ -69,3 +69,30 @@ export interface ChatStatusEvent {
   step: string;
   message: string;
 }
+
+// Compliance Checklist
+export type ChecklistItemStatus = "pending" | "compliant" | "non_compliant" | "not_applicable";
+export type ChecklistCategory = "legal" | "technical" | "financial" | "administrative" | "timeline" | "other";
+export type ChecklistSeverity = "mandatory" | "desirable";
+
+export interface ChecklistItem {
+  id: string;
+  requirement_text: string;
+  category: ChecklistCategory;
+  severity: ChecklistSeverity;
+  status: ChecklistItemStatus;
+  source_page: number | null;
+  source_document: string | null;
+}
+
+export interface ChecklistSummary {
+  total: number;
+  by_category: Record<string, number>;
+  by_severity: Record<string, number>;
+  by_status: Record<string, number>;
+}
+
+export interface ChecklistResponse {
+  items: ChecklistItem[];
+  summary: ChecklistSummary;
+}
