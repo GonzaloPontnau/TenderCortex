@@ -72,18 +72,23 @@ export default function App() {
     }
   };
 
-  const handleUpdateChecklistItem = (itemId: string, status: ChecklistItemStatus) => {
+  const handleUpdateChecklistItem = async (itemId: string, status: ChecklistItemStatus) => {
     if (!checklist) return;
-    setChecklist({
-      ...checklist,
-      items: checklist.items.map((item) =>
-        item.id === itemId ? { ...item, status } : item
-      ),
-      summary: recalcSummary(checklist.items.map((item) =>
-        item.id === itemId ? { ...item, status } : item
-      )),
-    });
-    updateChecklistItem(itemId, status);
+    const previousItem = checklist.items.find((item) => item.id === itemId);
+    if (!previousItem || previousItem.status === status) return;
+
+    const updatedItems = checklist.items.map((item) =>
+      item.id === itemId ? { ...item, status } : item
+    );
+    setChecklist({ ...checklist, items: updatedItems, summary: recalcSummary(updatedItems) });
+
+    const ok = await updateChecklistItem(itemId, status);
+    if (!ok) {
+      const revertedItems = checklist.items.map((item) =>
+        item.id === itemId ? { ...item, status: previousItem.status } : item
+      );
+      setChecklist({ ...checklist, items: revertedItems, summary: recalcSummary(revertedItems) });
+    }
   };
 
   const handleSend = async (question: string) => {
