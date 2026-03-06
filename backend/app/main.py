@@ -33,6 +33,15 @@ async def _warmup_services() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info(f"Iniciando TenderCortex [{settings.app_env}]")
+
+    # Phoenix observability (opt-in, lazy import to avoid RAM overhead when disabled)
+    if settings.enable_phoenix_tracing:
+        try:
+            from app.core.phoenix_tracing import setup_phoenix_tracing
+            setup_phoenix_tracing(settings.phoenix_endpoint)
+        except Exception as exc:
+            logger.warning(f"Phoenix tracing failed to initialize: {exc}")
+
     # Fire warmup in background so app becomes ready immediately
     asyncio.create_task(_warmup_services())
     yield

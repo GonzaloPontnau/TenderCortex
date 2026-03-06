@@ -54,6 +54,16 @@ class Settings(BaseSettings):
     cache_ttl_seconds: int = Field(default=300, ge=10, le=86400)
     cache_max_size: int = Field(default=100, ge=1, le=10000)
 
+    # Observability
+    enable_phoenix_tracing: bool = Field(
+        default=False,
+        description="Enable local Phoenix tracing for LangGraph/LangChain operations.",
+    )
+    phoenix_endpoint: str = Field(
+        default="http://127.0.0.1:6006/v1/traces",
+        description="OTLP HTTP endpoint for the Phoenix collector.",
+    )
+
     @property
     def is_development(self) -> bool:
         return self.app_env == "development"
