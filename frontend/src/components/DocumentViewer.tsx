@@ -2,9 +2,10 @@ interface DocumentViewerProps {
   fileUrl: string;
   fileName: string;
   onClose: () => void;
+  disableInteractions?: boolean;
 }
 
-export function DocumentViewer({ fileUrl, fileName, onClose }: DocumentViewerProps) {
+export function DocumentViewer({ fileUrl, fileName, onClose, disableInteractions = false }: DocumentViewerProps) {
   return (
     <div className="flex flex-col h-full bg-slate-900/50 border-r border-slate-800/50">
       {/* Header */}
@@ -33,6 +34,7 @@ export function DocumentViewer({ fileUrl, fileName, onClose }: DocumentViewerPro
         src={fileUrl}
         title={fileName}
         className="flex-1 w-full bg-white"
+        style={{ pointerEvents: disableInteractions ? "none" : "auto" }}
       />
     </div>
   );

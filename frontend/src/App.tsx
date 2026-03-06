@@ -45,7 +45,7 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
-  const { leftPercent, handleMouseDown, resetRatio } = useResizePanel({
+  const { leftPercent, isDragging, handleMouseDown, resetRatio } = useResizePanel({
     containerRef: splitContainerRef,
   });
 
@@ -191,6 +191,7 @@ export default function App() {
               fileUrl={activeDocument.fileUrl}
               fileName={activeDocument.name}
               onClose={handleCloseViewer}
+              disableInteractions={isDragging}
             />
           </div>
 
