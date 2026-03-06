@@ -1,4 +1,4 @@
-"""Verify spec consistency across the TenderCortex codebase.
+﻿"""Verify spec consistency across the TenderCortex codebase.
 
 Checks:
 1. Every node in agents/nodes/ has a SPEC_*.md
@@ -99,13 +99,13 @@ def main() -> None:
     if warnings:
         print("WARNINGS:")
         for w in warnings:
-            print(f"  ⚠ {w}")
+            print(f"  [WARN] {w}")
         print()
 
     if errors:
         print("ERRORS:")
         for e in errors:
-            print(f"  ✗ {e}")
+            print(f"  [ERROR] {e}")
         print(f"\n{len(errors)} spec consistency error(s) found.")
         sys.exit(1)
     else:
@@ -114,3 +114,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+

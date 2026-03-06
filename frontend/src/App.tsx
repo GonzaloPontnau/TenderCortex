@@ -1,8 +1,12 @@
 import { useRef, useState, useEffect } from "react";
 import { ChatInput } from "./components/ChatInput";
 import { ChatMessage } from "./components/ChatMessage";
+import { DocumentViewer } from "./components/DocumentViewer";
 import { PromptSuggestions } from "./components/PromptSuggestions";
+import { ResizeHandle } from "./components/ResizeHandle";
 import { Sidebar } from "./components/Sidebar";
+import { useMediaQuery } from "./hooks/useMediaQuery";
+import { useResizePanel } from "./hooks/useResizePanel";
 import { useRFP } from "./hooks/useRFP";
 import type { ChecklistItem, ChecklistItemStatus, ChecklistResponse, ChecklistSummary, Document, Message } from "./types";
 
@@ -37,7 +41,13 @@ export default function App() {
   const [isAnswering, setIsAnswering] = useState(false);
   const [checklist, setChecklist] = useState<ChecklistResponse | null>(null);
   const [checklistLoading, setChecklistLoading] = useState(false);
+  const [activeDocument, setActiveDocument] = useState<Document | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const splitContainerRef = useRef<HTMLDivElement>(null);
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const { leftPercent, handleMouseDown, resetRatio } = useResizePanel({
+    containerRef: splitContainerRef,
+  });
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -47,7 +57,23 @@ export default function App() {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    if (!isDesktop && activeDocument) {
+      setActiveDocument(null);
+    }
+  }, [isDesktop, activeDocument]);
+
+  const handleCloseViewer = () => {
+    setActiveDocument(null);
+    resetRatio();
+  };
+
+  const handleDocumentSelect = (doc: Document) => {
+    if (doc.fileUrl) setActiveDocument(doc);
+  };
+
   const handleUpload = async (file: File) => {
+    const fileUrl = URL.createObjectURL(file);
     const result = await uploadDocumentStream(file);
     if (result) {
       setDocuments((prev) => [
@@ -56,8 +82,11 @@ export default function App() {
           name: file.name,
           chunks: result.chunks_processed,
           uploadedAt: new Date(),
+          fileUrl,
         },
       ]);
+    } else {
+      URL.revokeObjectURL(fileUrl);
     }
     return result;
   };
@@ -149,39 +178,46 @@ export default function App() {
         onGenerateChecklist={handleGenerateChecklist}
         onUpdateChecklistItem={handleUpdateChecklistItem}
         checklistLoading={checklistLoading}
+        onDocumentSelect={isDesktop ? handleDocumentSelect : undefined}
+        activeDocumentName={activeDocument?.name ?? null}
       />
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0">
-        {/* Error Banner */}
-        {error && (
-          <div className="mx-6 mt-5 px-5 py-4 bg-red-950/30 border border-red-900/30 rounded-2xl flex items-center justify-between backdrop-blur-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center">
-                <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <span className="text-sm text-red-300">{error}</span>
-            </div>
-            <button
-              onClick={clearError}
-              className="p-2 hover:bg-red-900/30 rounded-xl transition-colors"
-            >
-              <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+      {activeDocument?.fileUrl && isDesktop ? (
+        <div ref={splitContainerRef} className="flex-1 flex min-w-0 overflow-hidden">
+          {/* Document Viewer */}
+          <div className="overflow-hidden" style={{ width: `${leftPercent}%` }}>
+            <DocumentViewer
+              fileUrl={activeDocument.fileUrl}
+              fileName={activeDocument.name}
+              onClose={handleCloseViewer}
+            />
           </div>
-        )}
 
-        {/* Chat Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {messages.length === 0 ? (
-            <PromptSuggestions onSelect={handleSend} />
-          ) : (
+          <ResizeHandle onMouseDown={handleMouseDown} />
+
+          {/* Chat Panel (split mode) */}
+          <div className="flex flex-col min-w-0 overflow-hidden" style={{ width: `${100 - leftPercent}%` }}>
+            {error && (
+              <div className="mx-4 mt-4 px-4 py-3 bg-red-950/30 border border-red-900/30 rounded-2xl flex items-center justify-between backdrop-blur-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-red-500/20 flex items-center justify-center">
+                    <svg className="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <span className="text-xs text-red-300">{error}</span>
+                </div>
+                <button onClick={clearError} className="p-1.5 hover:bg-red-900/30 rounded-lg transition-colors">
+                  <svg className="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
+
             <div className="flex-1 overflow-y-auto">
-              <div className="max-w-3xl mx-auto py-10 px-6 space-y-8">
+              <div className="max-w-2xl mx-auto py-8 px-4 space-y-6">
                 {messages.map((msg) => (
                   <ChatMessage
                     key={msg.id}
@@ -192,25 +228,19 @@ export default function App() {
                   />
                 ))}
                 {loading && isAnswering && (
-                  <div className="flex gap-4">
+                  <div className="flex gap-3">
                     <div className="relative flex-shrink-0">
                       <div className="absolute inset-0 bg-orange-500/20 rounded-full blur-md animate-pulse" />
-                      <img
-                        src="/logo.png"
-                        alt="Agent"
-                        className="relative w-9 h-9 rounded-full object-cover ring-2 ring-orange-500/30"
-                      />
+                      <img src="/logo.png" alt="Agent" className="relative w-8 h-8 rounded-full object-cover ring-2 ring-orange-500/30" />
                     </div>
-                    <div className="bg-gradient-to-br from-slate-800/80 to-slate-800/60 border border-slate-700/30 rounded-3xl rounded-tl-lg px-5 py-4 shadow-lg">
-                      <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
+                    <div className="bg-gradient-to-br from-slate-800/80 to-slate-800/60 border border-slate-700/30 rounded-3xl rounded-tl-lg px-4 py-3 shadow-lg">
+                      <div className="flex items-center gap-2 text-xs text-slate-400 mb-1.5">
                         <span className="inline-block w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
                         <span>Razonando</span>
                       </div>
                       <div className="space-y-1">
                         {(thinkingMessages.length > 0 ? thinkingMessages : ["Analizando tu consulta..."]).map((item, idx) => (
-                          <p key={`${item}-${idx}`} className="text-xs text-slate-300 leading-relaxed">
-                            {item}
-                          </p>
+                          <p key={`${item}-${idx}`} className="text-xs text-slate-300 leading-relaxed">{item}</p>
                         ))}
                       </div>
                     </div>
@@ -219,16 +249,90 @@ export default function App() {
                 <div ref={messagesEndRef} />
               </div>
             </div>
-          )}
-        </div>
 
-        {/* Input Area */}
-        <div className="border-t border-slate-800/30 bg-gradient-to-t from-slate-900/80 to-transparent backdrop-blur-sm">
-          <div className="max-w-3xl mx-auto p-6 pt-5">
-            <ChatInput onSend={handleSend} loading={loading} />
+            <div className="border-t border-slate-800/30 bg-gradient-to-t from-slate-900/80 to-transparent backdrop-blur-sm">
+              <div className="max-w-2xl mx-auto p-4 pt-3">
+                <ChatInput onSend={handleSend} loading={loading} />
+              </div>
+            </div>
           </div>
         </div>
-      </main>
+      ) : (
+        <main className="flex-1 flex flex-col min-w-0">
+          {error && (
+            <div className="mx-6 mt-5 px-5 py-4 bg-red-950/30 border border-red-900/30 rounded-2xl flex items-center justify-between backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <span className="text-sm text-red-300">{error}</span>
+              </div>
+              <button
+                onClick={clearError}
+                className="p-2 hover:bg-red-900/30 rounded-xl transition-colors"
+              >
+                <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
+
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {messages.length === 0 ? (
+              <PromptSuggestions onSelect={handleSend} />
+            ) : (
+              <div className="flex-1 overflow-y-auto">
+                <div className="max-w-3xl mx-auto py-10 px-6 space-y-8">
+                  {messages.map((msg) => (
+                    <ChatMessage
+                      key={msg.id}
+                      role={msg.role}
+                      content={msg.content}
+                      sources={msg.sources}
+                      agentMetadata={msg.agentMetadata}
+                    />
+                  ))}
+                  {loading && isAnswering && (
+                    <div className="flex gap-4">
+                      <div className="relative flex-shrink-0">
+                        <div className="absolute inset-0 bg-orange-500/20 rounded-full blur-md animate-pulse" />
+                        <img
+                          src="/logo.png"
+                          alt="Agent"
+                          className="relative w-9 h-9 rounded-full object-cover ring-2 ring-orange-500/30"
+                        />
+                      </div>
+                      <div className="bg-gradient-to-br from-slate-800/80 to-slate-800/60 border border-slate-700/30 rounded-3xl rounded-tl-lg px-5 py-4 shadow-lg">
+                        <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
+                          <span className="inline-block w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                          <span>Razonando</span>
+                        </div>
+                        <div className="space-y-1">
+                          {(thinkingMessages.length > 0 ? thinkingMessages : ["Analizando tu consulta..."]).map((item, idx) => (
+                            <p key={`${item}-${idx}`} className="text-xs text-slate-300 leading-relaxed">
+                              {item}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-slate-800/30 bg-gradient-to-t from-slate-900/80 to-transparent backdrop-blur-sm">
+            <div className="max-w-3xl mx-auto p-6 pt-5">
+              <ChatInput onSend={handleSend} loading={loading} />
+            </div>
+          </div>
+        </main>
+      )}
     </div>
   );
 }

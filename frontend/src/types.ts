@@ -40,6 +40,7 @@ export interface Document {
   name: string;
   chunks: number;
   uploadedAt: Date;
+  fileUrl?: string;
 }
 
 export interface IngestResponse {

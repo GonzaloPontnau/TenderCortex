@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ChecklistItemStatus, ChecklistResponse, Document, UploadProgress } from "../types";
 import { ChecklistPanel } from "./ChecklistPanel";
+import { InfoModal } from "./InfoModal";
 
 const PHASE_CONFIG: Record<string, { label: string; percent: number; color: string }> = {
   parsing:   { label: "Extrayendo texto",    percent: 15,  color: "from-blue-500 to-blue-400" },
@@ -20,9 +21,11 @@ interface SidebarProps {
   onGenerateChecklist: () => void;
   onUpdateChecklistItem: (itemId: string, status: ChecklistItemStatus) => void;
   checklistLoading: boolean;
+  onDocumentSelect?: (doc: Document) => void;
+  activeDocumentName?: string | null;
 }
 
-export function Sidebar({ documents, onUpload, loading, uploadProgress, checklist, onGenerateChecklist, onUpdateChecklistItem, checklistLoading }: SidebarProps) {
+export function Sidebar({ documents, onUpload, loading, uploadProgress, checklist, onGenerateChecklist, onUpdateChecklistItem, checklistLoading, onDocumentSelect, activeDocumentName }: SidebarProps) {
   const [dragOver, setDragOver] = useState(false);
   const [activeTab, setActiveTab] = useState<"docs" | "checklist">("docs");
 
@@ -69,10 +72,11 @@ export function Sidebar({ documents, onUpload, loading, uploadProgress, checklis
               className="relative w-11 h-11 rounded-full object-cover ring-2 ring-orange-500/30"
             />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="font-semibold text-white">TenderCortex</h1>
             <p className="text-xs text-slate-500">Multi-Agent Intelligence</p>
           </div>
+          <InfoModal />
         </div>
       </div>
 
@@ -203,22 +207,35 @@ export function Sidebar({ documents, onUpload, loading, uploadProgress, checklis
             </div>
           ) : (
             <ul className="space-y-2">
-              {documents.map((doc, i) => (
-                <li
-                  key={i}
-                  className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800/40 transition-all duration-200 group cursor-pointer"
-                >
-                  <div className="w-10 h-10 bg-gradient-to-br from-slate-800 to-slate-800/50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:from-orange-500/20 group-hover:to-orange-600/10 transition-all duration-200">
-                    <svg className="w-5 h-5 text-slate-400 group-hover:text-orange-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-300 truncate">{doc.name}</p>
-                    <p className="text-xs text-slate-600">{doc.chunks} chunks indexados</p>
-                  </div>
-                </li>
-              ))}
+              {documents.map((doc, i) => {
+                const isActive = activeDocumentName === doc.name;
+                const canOpen = !!doc.fileUrl && !!onDocumentSelect;
+                return (
+                  <li
+                    key={i}
+                    onClick={canOpen ? () => onDocumentSelect(doc) : undefined}
+                    className={`flex items-center gap-3 p-3 rounded-2xl transition-all duration-200 group ${
+                      isActive
+                        ? "bg-orange-500/10 ring-1 ring-orange-500/30"
+                        : "hover:bg-slate-800/40"
+                    } ${canOpen ? "cursor-pointer" : ""}`}
+                  >
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
+                      isActive
+                        ? "bg-gradient-to-br from-orange-500/20 to-orange-600/10"
+                        : "bg-gradient-to-br from-slate-800 to-slate-800/50 group-hover:from-orange-500/20 group-hover:to-orange-600/10"
+                    }`}>
+                      <svg className={`w-5 h-5 transition-colors ${isActive ? "text-orange-400" : "text-slate-400 group-hover:text-orange-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-slate-300 truncate">{doc.name}</p>
+                      <p className="text-xs text-slate-600">{doc.chunks} chunks indexados</p>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
