@@ -251,12 +251,16 @@ export function useRFP(): UseRFPReturn {
 ├── ARCHITECTURE.md        # Documentación técnica detallada
 ├── README.md              # Documentación para usuarios
 │
-├── SPEC_TEMPLATES/        # 📐 Templates para Spec-Driven Development
-│   ├── AGENT_SPEC.md              # Template para specs de agentes
-│   ├── ENDPOINT_SPEC.md           # Template para specs de endpoints
-│   ├── NODE_SPEC.md               # Template para specs de nodos
-│   ├── SERVICE_SPEC.md            # Template para specs de servicios
-│   └── SKILL_SPEC.md              # Template para specs de skills
+├── openspec/               # 📐 Spec-Driven Development (SDD)
+│   ├── config.yaml                # Configuración del proyecto SDD
+│   ├── specs/                     # Specs consolidadas por feature
+│   ├── changes/                   # Cambios activos y archivo histórico
+│   └── templates/                 # Templates para specs de componentes
+│       ├── AGENT_SPEC.md
+│       ├── ENDPOINT_SPEC.md
+│       ├── NODE_SPEC.md
+│       ├── SERVICE_SPEC.md
+│       └── SKILL_SPEC.md
 │
 ├── backend/
 │   ├── app/
@@ -517,15 +521,15 @@ class MySkillOutput(BaseModel):
 
 ### Paso 1: Escribir la Especificación
 
-Usar el template correspondiente de `SPEC_TEMPLATES/`:
+Usar el template correspondiente de `openspec/templates/`:
 
-| Componente          | Template           | Ubicación del spec                 |
-| ------------------- | ------------------ | ---------------------------------- |
-| Agente especialista | `AGENT_SPEC.md`    | `app/agents/specialists/SPEC_*.md` |
-| Nodo del pipeline   | `NODE_SPEC.md`     | `app/agents/nodes/SPEC_*.md`       |
-| Servicio            | `SERVICE_SPEC.md`  | `app/services/SPEC_*.md`           |
-| Endpoint            | `ENDPOINT_SPEC.md` | `app/api/SPEC_*.md`                |
-| Skill               | `SKILL_SPEC.md`    | `skills/<name>/SKILL.md`           |
+| Componente          | Template                              | Ubicación del spec                 |
+| ------------------- | ------------------------------------- | ---------------------------------- |
+| Agente especialista | `openspec/templates/AGENT_SPEC.md`    | `app/agents/specialists/SPEC_*.md` |
+| Nodo del pipeline   | `openspec/templates/NODE_SPEC.md`     | `app/agents/nodes/SPEC_*.md`       |
+| Servicio            | `openspec/templates/SERVICE_SPEC.md`  | `app/services/SPEC_*.md`           |
+| Endpoint            | `openspec/templates/ENDPOINT_SPEC.md` | `app/api/SPEC_*.md`                |
+| Skill               | `openspec/templates/SKILL_SPEC.md`    | `skills/<name>/SKILL.md`           |
 
 Cada spec debe incluir:
 
@@ -824,7 +828,7 @@ VITE_API_URL=https://multi-agent-rfp-orchestrator-backend.onrender.com
 │   BDD:      pytest tests/bdd -v -m bdd                         │
 │                                                                 │
 │ SDD WORKFLOW                                                    │
-│   1. Write spec   → SPEC_TEMPLATES/<type>_SPEC.md              │
+│   1. Write spec   → openspec/templates/<type>_SPEC.md           │
 │   2. Gen tests    → python scripts/generate_spec_tests.py      │
 │   3. Implement    → follow spec behaviors                      │
 │   4. Validate     → python scripts/check_specs.py              │

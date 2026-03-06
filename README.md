@@ -113,18 +113,25 @@ graph TD
 │   │   │   ├── risk_sentinel  # Compliance auditor
 │   │   │   ├── quant          # Quantitative analysis
 │   │   │   └── specialists/   # 6 domain-specific agents
+│   │   ├── api/               # REST endpoints (chat, documents, checklist)
 │   │   ├── core/              # Config, logging, exceptions
 │   │   ├── schemas/           # Pydantic request/response models
 │   │   ├── services/          # RAG, LLM, embeddings, vector store
 │   │   └── main.py            # Application entry point
 │   ├── skills/                # 8 product skills (audit, parsing, scoring...)
-│   └── tests/                 # Unit & integration tests
+│   └── tests/                 # Unit, BDD & integration tests
 ├── frontend/
 │   └── src/
-│       ├── components/        # ChatInput, ChatMessage, Sidebar
+│       ├── components/        # ChatInput, DocumentViewer, ChecklistPanel
 │       ├── hooks/             # useRFP (application state)
 │       └── types.ts           # TypeScript definitions
-└── README.md
+├── openspec/                  # Spec-Driven Development (SDD) artifacts
+│   ├── specs/                 # Consolidated feature specifications
+│   ├── changes/               # Active changes & archive
+│   └── templates/             # Spec templates (Agent, Endpoint, Node, etc.)
+├── AGENTS.md                  # Development constitution for AI agents
+├── ARCHITECTURE.md            # Technical architecture documentation
+└── CLAUDE.md                  # Claude Code guidance
 ```
 
 ---

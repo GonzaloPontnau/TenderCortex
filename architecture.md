@@ -25,12 +25,13 @@ Sistema multi-agente para automatizar el analisis de licitaciones publicas. Util
 │   │   ├── agents/               # LangGraph: orquestacion multi-agente
 │   │   │   ├── rfp_graph.py      # Grafo principal (StateGraph)
 │   │   │   ├── agent_factory.py  # Factory pattern para agentes
-│   │   │   ├── risk_sentinel.py  # Auditor de compliance y riesgo
-│   │   │   ├── quant.py          # Analista cuantitativo
-│   │   │   ├── base/             # Clase base Agent (OOP)
+│   │   │   ├── risk_sentinel/    # Auditor de compliance y riesgo
+│   │   │   ├── quant/            # Analista cuantitativo
+│   │   │   ├── base_agent.py     # Clase base Agent (OOP)
 │   │   │   ├── specialists/      # 6 subagentes por dominio
+│   │   │   ├── nodes/            # Nodos del pipeline (con SPEC_*.md)
 │   │   │   └── prompts/          # Templates de prompts
-│   │   ├── api/                  # Endpoints REST
+│   │   ├── api/                  # Endpoints REST (chat, documents, checklist)
 │   │   ├── core/                 # Config, logging, excepciones
 │   │   ├── schemas/              # Modelos Pydantic (request/response)
 │   │   └── services/             # RAG, LLM, embeddings, vector store
@@ -47,13 +48,20 @@ Sistema multi-agente para automatizar el analisis de licitaciones publicas. Util
 │   │
 │   └── tests/
 │       ├── unit/                 # Tests unitarios
+│       ├── bdd/                  # BDD specs (pytest-bdd)
 │       └── integration/          # Tests de integracion
 │
-└── frontend/
-    └── src/
-        ├── components/           # ChatInput, ChatMessage, Sidebar
-        ├── hooks/                # useRFP (estado de la aplicacion)
-        └── types.ts              # TypeScript definitions
+├── frontend/
+│   └── src/
+│       ├── components/           # ChatInput, DocumentViewer, ChecklistPanel
+│       ├── hooks/                # useRFP (estado de la aplicacion)
+│       └── types.ts              # TypeScript definitions
+│
+└── openspec/                     # Spec-Driven Development (SDD)
+    ├── config.yaml               # Configuracion del proyecto SDD
+    ├── specs/                    # Specs consolidadas por feature
+    ├── changes/                  # Cambios activos y archivo historico
+    └── templates/                # Templates para specs de componentes
 ```
 
 ## 4. Flujo del Agente (LangGraph StateGraph)
