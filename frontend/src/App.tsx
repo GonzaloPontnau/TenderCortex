@@ -42,6 +42,7 @@ export default function App() {
   const [checklist, setChecklist] = useState<ChecklistResponse | null>(null);
   const [checklistLoading, setChecklistLoading] = useState(false);
   const [activeDocument, setActiveDocument] = useState<Document | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -62,6 +63,10 @@ export default function App() {
       setActiveDocument(null);
     }
   }, [isDesktop, activeDocument]);
+
+  useEffect(() => {
+    if (isDesktop) setIsSidebarOpen(false);
+  }, [isDesktop]);
 
   const handleCloseViewer = () => {
     setActiveDocument(null);
@@ -180,6 +185,8 @@ export default function App() {
         checklistLoading={checklistLoading}
         onDocumentSelect={isDesktop ? handleDocumentSelect : undefined}
         activeDocumentName={activeDocument?.name ?? null}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
 
       {/* Main Content */}
@@ -260,6 +267,23 @@ export default function App() {
         </div>
       ) : (
         <main className="flex-1 flex flex-col min-w-0">
+          {/* Mobile top bar */}
+          <div className="md:hidden flex items-center gap-3 px-4 py-3 border-b border-slate-800/40">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors"
+              aria-label="Abrir panel"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div className="flex items-center gap-2">
+              <img src="/logo.png" alt="TenderCortex" className="w-6 h-6 rounded-full object-cover ring-1 ring-orange-500/30" />
+              <span className="text-sm font-medium text-slate-200">TenderCortex</span>
+            </div>
+          </div>
+
           {error && (
             <div className="mx-6 mt-5 px-5 py-4 bg-red-950/30 border border-red-900/30 rounded-2xl flex items-center justify-between backdrop-blur-sm">
               <div className="flex items-center gap-3">
@@ -286,7 +310,7 @@ export default function App() {
               <PromptSuggestions onSelect={handleSend} />
             ) : (
               <div className="flex-1 overflow-y-auto">
-                <div className="max-w-3xl mx-auto py-10 px-6 space-y-8">
+                <div className="max-w-3xl mx-auto py-4 px-3 sm:py-10 sm:px-6 space-y-4 sm:space-y-8">
                   {messages.map((msg) => (
                     <ChatMessage
                       key={msg.id}
@@ -328,7 +352,7 @@ export default function App() {
           </div>
 
           <div className="border-t border-slate-800/30 bg-gradient-to-t from-slate-900/80 to-transparent backdrop-blur-sm">
-            <div className="max-w-3xl mx-auto p-6 pt-5">
+            <div className="max-w-3xl mx-auto p-3 sm:p-6 sm:pt-5">
               <ChatInput onSend={handleSend} loading={loading} />
             </div>
           </div>

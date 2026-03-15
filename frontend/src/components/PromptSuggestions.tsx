@@ -86,28 +86,28 @@ const SUGGESTIONS = [
 
 export function PromptSuggestions({ onSelect }: PromptSuggestionsProps) {
   return (
-    <div className="flex-1 overflow-y-auto p-8">
-      <div className="max-w-5xl w-full mx-auto pb-8">
+    <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+      <div className="max-w-5xl w-full mx-auto pb-6 sm:pb-8">
         {/* Header */}
-        <div className="text-center mb-12">
-          <div className="relative inline-block mb-6">
+        <div className="text-center mb-6 sm:mb-12">
+          <div className="relative inline-block mb-4 sm:mb-6">
             <div className="absolute inset-0 bg-orange-500/20 rounded-full blur-2xl scale-150" />
             <img
               src="/logo.png"
               alt="TenderCortex"
-              className="relative w-20 h-20 rounded-full ring-2 ring-orange-500/20"
+              className="relative w-14 h-14 sm:w-20 sm:h-20 rounded-full ring-2 ring-orange-500/20"
             />
           </div>
-          <h2 className="text-2xl font-light text-slate-200 mb-2">
+          <h2 className="text-xl sm:text-2xl font-light text-slate-200 mb-2">
             Analiza documentos de licitacion
           </h2>
-          <p className="text-slate-500">
+          <p className="text-sm sm:text-base text-slate-500">
             Selecciona una consulta o escribe tu pregunta
           </p>
         </div>
 
         {/* Suggestions Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {SUGGESTIONS.map((group) => (
             <div key={group.category} className="space-y-3">
               <div className="flex items-center gap-2 px-1 text-slate-500">

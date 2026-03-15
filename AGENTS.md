@@ -52,6 +52,11 @@ pytest -v
 
 # Ejecutar servidor de desarrollo
 uvicorn app.main:app --reload --port 8000
+
+# Phoenix (tracing, opcional)
+pip install -r requirements-tracing.txt         # Instalar deps Phoenix/OTel
+phoenix serve                                   # Ejecutar Phoenix UI (localhost:6006)
+# ENABLE_PHOENIX_TRACING=true uvicorn app.main:app --reload --port 8000  # Dev con tracing
 ```
 
 ### Frontend (TypeScript)
@@ -820,6 +825,7 @@ VITE_API_URL=https://multi-agent-rfp-orchestrator-backend.onrender.com
 │ DEV SERVERS                                                     │
 │   Backend:  uvicorn app.main:app --reload --port 8000          │
 │   Frontend: npm run dev                                         │
+│   Phoenix:  pip install -r requirements-tracing.txt && phoenix serve  │
 │                                                                 │
 │ VALIDATE                                                        │
 │   Backend:  pytest -v                                           │

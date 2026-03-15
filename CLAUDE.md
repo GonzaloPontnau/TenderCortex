@@ -23,6 +23,11 @@ pytest --cov=app --cov-report=term-missing      # Coverage
 python scripts/check_specs.py                   # Verify SPEC <-> code consistency
 python scripts/export_openapi.py                # Export OpenAPI spec
 python scripts/validate_openapi.py              # Validate OpenAPI spec
+
+# Phoenix (tracing, opcional)
+pip install -r requirements-tracing.txt         # Install Phoenix/OTel deps
+phoenix serve                                   # Run Phoenix UI (localhost:6006)
+# ENABLE_PHOENIX_TRACING=true uvicorn app.main:app --reload --port 8000  # Dev with tracing
 ```
 
 ### Frontend (TypeScript — run from `frontend/`)

@@ -23,9 +23,11 @@ interface SidebarProps {
   checklistLoading: boolean;
   onDocumentSelect?: (doc: Document) => void;
   activeDocumentName?: string | null;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export function Sidebar({ documents, onUpload, loading, uploadProgress, checklist, onGenerateChecklist, onUpdateChecklistItem, checklistLoading, onDocumentSelect, activeDocumentName }: SidebarProps) {
+export function Sidebar({ documents, onUpload, loading, uploadProgress, checklist, onGenerateChecklist, onUpdateChecklistItem, checklistLoading, onDocumentSelect, activeDocumentName, isOpen = false, onClose }: SidebarProps) {
   const [dragOver, setDragOver] = useState(false);
   const [activeTab, setActiveTab] = useState<"docs" | "checklist">("docs");
 
@@ -60,7 +62,23 @@ export function Sidebar({ documents, onUpload, loading, uploadProgress, checklis
   };
 
   return (
-    <aside className="w-72 bg-gradient-to-b from-slate-900 to-slate-900/95 border-r border-slate-800/50 flex flex-col">
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden"
+          onClick={() => onClose?.()}
+          aria-label="Cerrar panel"
+        />
+      )}
+
+      <aside className={`
+        fixed inset-y-0 left-0 z-40 w-72
+        transition-transform duration-300 ease-in-out
+        md:relative md:z-auto
+        ${isOpen ? "translate-x-0" : "max-md:-translate-x-full"}
+        bg-gradient-to-b from-slate-900 to-slate-900/95 border-r border-slate-800/50 flex flex-col
+      `}>
       {/* Logo */}
       <div className="p-6">
         <div className="flex items-center gap-4">
@@ -76,7 +94,20 @@ export function Sidebar({ documents, onUpload, loading, uploadProgress, checklis
             <h1 className="font-semibold text-white">TenderCortex</h1>
             <p className="text-xs text-slate-500">Multi-Agent Intelligence</p>
           </div>
-          <InfoModal />
+          <div className="flex items-center gap-1">
+            <InfoModal />
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors"
+                aria-label="Cerrar panel"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -217,21 +248,25 @@ export function Sidebar({ documents, onUpload, loading, uploadProgress, checklis
                     className={`flex items-center gap-3 p-3 rounded-2xl transition-all duration-200 group ${
                       isActive
                         ? "bg-orange-500/10 ring-1 ring-orange-500/30"
-                        : "hover:bg-slate-800/40"
-                    } ${canOpen ? "cursor-pointer" : ""}`}
+                        : canOpen ? "hover:bg-slate-800/40" : ""
+                    } ${canOpen ? "cursor-pointer" : "cursor-default"}`}
                   >
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
                       isActive
                         ? "bg-gradient-to-br from-orange-500/20 to-orange-600/10"
-                        : "bg-gradient-to-br from-slate-800 to-slate-800/50 group-hover:from-orange-500/20 group-hover:to-orange-600/10"
+                        : canOpen
+                          ? "bg-gradient-to-br from-slate-800 to-slate-800/50 group-hover:from-orange-500/20 group-hover:to-orange-600/10"
+                          : "bg-gradient-to-br from-slate-800 to-slate-800/50"
                     }`}>
-                      <svg className={`w-5 h-5 transition-colors ${isActive ? "text-orange-400" : "text-slate-400 group-hover:text-orange-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className={`w-5 h-5 transition-colors ${isActive ? "text-orange-400" : canOpen ? "text-slate-400 group-hover:text-orange-400" : "text-slate-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                       </svg>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-slate-300 truncate">{doc.name}</p>
-                      <p className="text-xs text-slate-600">{doc.chunks} chunks indexados</p>
+                      <p className="text-xs text-slate-600">
+                        {canOpen ? `${doc.chunks} chunks indexados` : `${doc.chunks} chunks · solo escritorio`}
+                      </p>
                     </div>
                   </li>
                 );
@@ -241,6 +276,7 @@ export function Sidebar({ documents, onUpload, loading, uploadProgress, checklis
         </div>
       )}
 
-    </aside>
+      </aside>
+    </>
   );
 }
