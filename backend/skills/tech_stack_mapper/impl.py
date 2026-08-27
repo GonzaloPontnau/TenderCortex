@@ -263,12 +263,37 @@ NICE_TO_HAVE_KEYWORDS = [
 ]
 
 FORBIDDEN_KEYWORDS = [
-    "no usar", "no utilizar", "prohibido", "prohibida",
-    "evitar", "nunca", "migrar desde", "migrar de",
-    "reemplazar", "sustituir", "legacy", "obsoleto", "obsoleta",
-    "descartado", "descartada", "excluido", "excluida",
-    "must not", "forbidden", "avoid", "migrate from",
-    "replace", "deprecated", "legacy",
+    # Spanish
+    "no usar",
+    "no utilizar",
+    "prohibido",
+    "prohibida",
+    "evitar",
+    "nunca",
+    "migrar desde",
+    "migrar de",
+    "reemplazar",
+    "sustituir",
+    "legacy",
+    "obsoleto",
+    "obsoleta",
+    "descartado",
+    "descartada",
+    "excluido",
+    "excluida",
+    
+    # English
+    "do not use",
+    "do not utilize",
+    "must not",
+    "mustn't",
+    "forbidden",
+    "avoid",
+    "never use",
+    "migrate from",
+    "replace",
+    "deprecated",
+    "legacy",
 ]
 
 
